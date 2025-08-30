@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生活动积分审查系统</title>
+    <!-- 引入Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入SheetJS用于Excel文件处理 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 引入mammoth.js用于Word文档处理 -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <!-- 可选：引入Tesseract.js用于图片OCR（提取图片中的文字） -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <!-- 可选：JSZip用于读取docx压缩包中的图片资源（OCR需要） -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    
+
+    
+
+    
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+        
+        /* 自定义工具类 */
+        .content-auto {
+            content-visibility: auto;
+        }
+        .transition-height {
+            transition: max-height 0.3s ease;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 自定义颜色类 */
+        .text-primary { color: #165DFF; }
+        .text-secondary { color: #36CFC9; }
+        .text-success { color: #52C41A; }
+        .text-warning { color: #FAAD14; }
+        .text-danger { color: #F5222D; }
+        .text-info { color: #1890FF; }
+        .text-light { color: #F0F2F5; }
+        .text-dark { color: #1D2129; }
+        
+        .bg-primary { background-color: #165DFF; }
+        .bg-secondary { background-color: #36CFC9; }
+        .bg-success { background-color: #52C41A; }
+        .bg-warning { background-color: #FAAD14; }
+        .bg-danger { background-color: #F5222D; }
+        .bg-info { background-color: #1890FF; }
+        .bg-light { background-color: #F0F2F5; }
+        .bg-dark { background-color: #1D2129; }
+        
+        .border-primary { border-color: #165DFF; }
+        .border-secondary { border-color: #36CFC9; }
+        .border-success { border-color: #52C41A; }
+        .border-warning { border-color: #FAAD14; }
+        .border-danger { border-color: #F5222D; }
+        .border-info { border-color: #1890FF; }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .slide-down {
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        /* Tabs aesthetics */
+        .rule-tab { position: relative; transition: color .2s ease; }
+        .rule-tab::after { content: ""; position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background-color: #165DFF; transition: width .25s ease; }
+        .rule-tab.text-primary.border-b-2.border-primary::after { width: 100%; }
+        /* Smooth panel transition */
+        .rule-content { opacity: 1; transform: translateY(0); transition: opacity .2s ease, transform .2s ease; }
+        .rule-content.hidden { opacity: 0; transform: translateY(6px); }
+        /* Cards */
+        .elevated-card { box-shadow: 0 6px 20px rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.05); }
+        /* Tables */
+        .table-sticky thead th { position: sticky; top: 0; z-index: 1; }
+        .table-zebra tbody tr:nth-child(odd) { background-color: #fafbff; }
+        .table-compact td, .table-compact th { padding: 0.5rem 0.75rem !important; }
+        .table-compact tbody tr { height: 2.5rem; }
+        .table-compact .bg-gray-50 { background-color: #f9fafb !important; }
+        .table-compact thead th { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+            font-weight: 600;
+            color: #475569;
+        }
+        
+        /* 表格内容居中对齐 */
+        .table-compact tbody td { text-align: center !important; }
+        .table-compact tbody td:last-child { text-align: center !important; }
+        
+        /* 按钮美化 */
+        .btn-primary { 
+            background: linear-gradient(135deg, #165DFF 0%, #0d47a1 100%);
+            box-shadow: 0 2px 4px rgba(22, 93, 255, 0.2);
+        }
+        .btn-primary:hover { 
+            background: linear-gradient(135deg, #0d47a1 0%, #165DFF 100%);
+            box-shadow: 0 4px 8px rgba(22, 93, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-success { 
+            background: linear-gradient(135deg, #52C41A 0%, #388e3c 100%);
+            box-shadow: 0 2px 4px rgba(82, 196, 26, 0.2);
+        }
+        .btn-success:hover { 
+            background: linear-gradient(135deg, #388e3c 0%, #52C41A 100%);
+            box-shadow: 0 4px 8px rgba(82, 196, 26, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-info { 
+            background: linear-gradient(135deg, #1890FF 0%, #1565c0 100%);
+            box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+        }
+        .btn-info:hover { 
+            background: linear-gradient(135deg, #1565c0 0%, #1890FF 100%);
+            box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        /* 卡片美化 */
+        .elevated-card { 
+            box-shadow: 0 4px 12px rgba(0,0,0,.08); 
+            border: 1px solid rgba(0,0,0,.04);
+            transition: all 0.3s ease;
+        }
+        .elevated-card:hover { 
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+            transform: translateY(-2px);
+        }
+        
+        /* 输入框美化 */
+        input:focus, select:focus, textarea:focus {
+            border-color: #165DFF;
+            box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.1);
+        }
+        
+        /* 删除按钮美化 */
+        .btn-delete {
+            background: linear-gradient(135deg, #F5222D 0%, #d32f2f 100%);
+            box-shadow: 0 2px 4px rgba(245, 34, 45, 0.2);
+            transition: all 0.2s ease;
+        }
+        .btn-delete:hover {
+            background: linear-gradient(135deg, #d32f2f 0%, #F5222D 100%);
+            box-shadow: 0 4px 8px rgba(245, 34, 45, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        /* 分页控件样式 */
+        .pagination-btn {
+            transition: all 0.2s ease;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination-btn.active {
+            background-color: #165DFF;
+            color: white;
+            border-color: #165DFF;
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md fixed w-full top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-table text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">学生活动积分审查系统</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="helpBtn" class="text-gray-600 hover:text-primary transition-colors">
+                    <i class="fa fa-question-circle text-xl"></i>
+                </button>
+                <button id="themeToggle" class="text-gray-600 hover:text-primary transition-colors">
+                    <i class="fa fa-moon-o text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 pt-20 pb-10">
+        <!-- 文件上传区域 -->
+        <section class="mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 transition-all duration-300 hover:shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-upload text-primary mr-2"></i>文件上传
+                </h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer" id="dropArea">
+                    <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv,.doc,.docx" multiple>
+                    <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-600 mb-2">拖放文件到此处，或点击选择文件</p>
+                    <p class="text-sm text-gray-400">支持Excel、CSV和Word格式，可批量上传</p>
+                    <button id="browseBtn" class="mt-3 btn-primary text-white px-8 py-2 rounded-md transition-all duration-200 text-sm">
+                        选择文件
+                    </button>
+                </div>
+                <div id="uploadedFiles" class="mt-4 hidden">
+                    <h3 class="font-medium mb-2">已上传文件：</h3>
+                    <ul id="fileList" class="space-y-2 max-h-40 overflow-y-auto scrollbar-hide"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 审查规则设置 -->
+        <section class="mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 transition-all duration-300 hover:shadow-lg">
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-sliders text-primary mr-2"></i>审查规则设置
+                </h2>
+                
+                <!-- 规则选项卡 -->
+                <div class="mb-3 border-b">
+                    <nav class="flex -mb-px space-x-6">
+                        <button class="rule-tab text-primary border-b-2 border-primary px-1 py-2 font-medium" data-tab="activity">活动名称与分数</button>
+                        <button class="rule-tab text-gray-500 hover:text-primary px-1 py-2 font-medium" data-tab="student">学号审核</button>
+                        <button class="rule-tab text-gray-500 hover:text-primary px-1 py-2 font-medium" data-tab="department">部门规则</button>
+                    </nav>
+                </div>
+                
+                <!-- 规则内容容器（与选项卡联动） -->
+                <div class="rule-content" id="activity-content">
+                    <div id="activityRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fa fa-star text-primary mr-2 text-xs"></i>活动名称与分数
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <select id="activitySelect" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                <option value="">请选择活动</option>
+                            </select>
+                            <input type="text" id="activityName" placeholder="活动名称" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                            <input type="number" id="activityScore" placeholder="分数" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                        </div>
+                                                <div class="flex justify-center mb-3">
+                            <button id="addActivityRule" class="btn-success text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                                <i class="fa fa-plus mr-1"></i>添加规则
+                            </button>
+                        </div>
+                        
+                        <!-- 批量添加功能 -->
+                        <div class="border-t pt-3 mt-3">
+                            <h4 class="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa fa-list-alt text-info mr-1"></i>批量添加活动
+                            </h4>
+                            <textarea id="batchActivityInput" placeholder="格式：活动名称,分数" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm h-24 resize-none"></textarea>
+                            <div class="flex justify-center mt-2">
+                                <button id="batchAddActivityRule" class="btn-info text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                                    <i class="fa fa-list mr-1"></i>批量添加
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 overflow-x-auto max-h-36">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
+                                <thead>
+                                    <tr>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">活动名称</th>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">标准分数</th>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activityRulesTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 活动规则会动态添加到这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rule-content hidden" id="student-content">
+                    <div id="studentRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fa fa-id-card text-primary mr-2 text-xs"></i>学号审核
+                        </h3>
+                        <div class="mb-2">
+                            <div class="space-y-2 mb-1">
+                                <select id="studentIdRuleType" class="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                    <option value="">请选择规则类型</option>
+                                    <option value="prefix">开头规则（学号开头的前两位）</option>
+                                    <option value="length">位数规则（学号位数）</option>
+                                </select>
+                                <div class="flex gap-2">
+                                    <input type="text" id="studentIdPattern" placeholder="例如：23xxx（开头规则）或 10（位数规则）" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                    <button id="saveStudentIdRule" class="btn-success text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm whitespace-nowrap">
+                                        <i class="fa fa-plus mr-1"></i>添加规则
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500">开头规则：输入学号开头的前两位；位数规则：输入10表示10位学号;</p>
+                        </div>
+                        
+                        <!-- 学号规则列表 -->
+                        <div class="mt-3 overflow-x-auto max-h-36">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
+                                <thead>
+                                    <tr>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">规则类型</th>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">规则值</th>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentIdRulesTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 学号规则会动态添加到这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rule-content hidden" id="department-content">
+                    <div id="departmentRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fa fa-building text-primary mr-2 text-xs"></i>部门规则
+                        </h3>
+                        <div class="space-y-2 mb-2">
+                            <select id="departmentSelect" class="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                <option value="">请选择部门</option>
+                            </select>
+                            <div class="flex gap-2">
+                                <input type="text" id="departmentName" placeholder="部门名称" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                <button id="addDepartmentRule" class="btn-success text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm whitespace-nowrap">
+                                    <i class="fa fa-plus mr-1"></i>添加规则
+                                </button>
+                            </div>
+                            <!-- 批量添加部门规则 -->
+                            <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div class="flex items-center mb-2">
+                                    <i class="fa fa-layer-group text-blue-600 mr-2 text-xs"></i>
+                                    <span class="text-sm font-medium text-blue-800">批量添加部门规则</span>
+                                </div>
+                                <textarea id="batchDepartmentInput" placeholder="请输入要批量添加的部门名称，每行一个部门名称&#10;例如：&#10;读者服务部&#10;期刊部&#10;技术部" class="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-sm resize-none" rows="4"></textarea>
+                                <div class="flex justify-center mt-2">
+                                    <button id="batchAddDepartmentRule" class="btn-primary text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                                        <i class="fa fa-plus mr-1"></i>批量添加
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 overflow-x-auto max-h-36">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
+                                <thead>
+                                    <tr>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">部门名称</th>
+                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="departmentRulesTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 部门规则会动态添加到这里 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 审查结果 -->
+        <section>
+            <div class="bg-white rounded-lg shadow-md p-4 transition-all duration-300 hover:shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold flex items-center">
+                        <i class="fa fa-search text-primary mr-2"></i>审查结果
+                    </h2>
+                    <div class="flex space-x-3">
+                        <button id="startReviewBtn" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200 flex items-center text-sm" disabled>
+                            <i class="fa fa-play mr-1"></i>开始审查
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <button id="clearResultsBtn" class="bg-danger text-white px-4 py-2 rounded-md hover:bg-danger/90 transition-colors flex items-center text-sm hidden">
+                                <i class="fa fa-trash mr-1"></i>清空结果
+                            </button>
+                            <!-- 导出选项选项卡 -->
+                            <div id="exportOptions" class="hidden">
+                                <div class="flex bg-gray-100 rounded-md p-1">
+                                    <button class="export-option-btn bg-white text-gray-700 px-3 py-1 rounded-md text-sm shadow-sm transition-colors" data-export-filter="all">
+                                        全部
+                                    </button>
+                                    <button class="export-option-btn bg-gray-100 text-gray-500 px-3 py-1 rounded-md text-sm transition-colors" data-export-filter="passed">
+                                        通过
+                                    </button>
+                                    <button class="export-option-btn bg-gray-100 text-gray-500 px-3 py-1 rounded-md text-sm transition-colors" data-export-filter="failed">
+                                        不通过
+                                    </button>
+                                </div>
+                            </div>
+                            <button id="exportResultsBtn" class="btn-success text-white px-6 py-2 rounded-md transition-all duration-200 flex items-center text-sm" disabled>
+                                <i class="fa fa-download mr-1"></i>导出结果
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 查询条件 -->
+                <div class="mb-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">部门查询</label>
+                        <select id="queryDepartment" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                            <option value="">全部部门</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">学号开头</label>
+                        <input id="queryStudentPrefix" type="text" placeholder="如：23" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm" />
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button id="applyQueryBtn" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200 text-sm"><i class="fa fa-filter mr-1"></i>应用查询</button>
+                        <button id="resetQueryBtn" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 transition-colors text-sm"><i class="fa fa-undo mr-1"></i>重置</button>
+                    </div>
+                </div>
+                
+                <!-- 审查状态 -->
+                <div id="reviewStatus" class="mb-3 hidden">
+                    <div class="flex items-center justify-between">
+                        <p class="text-gray-600"><i class="fa fa-spinner fa-spin mr-2"></i>审查进行中...</p>
+                        <span id="progressPercentage" class="text-primary font-medium">0%</span>
+                    </div>
+                    <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                        <div id="progressBar" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- 结果过滤 -->
+                <div id="resultFilter" class="mb-3 hidden">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <label class="text-gray-700 whitespace-nowrap text-sm">筛选：</label>
+                        <button class="filter-btn bg-primary text-white px-4 py-1.5 rounded-md text-sm" data-filter="all">全部</button>
+                        <button class="filter-btn bg-gray-200 text-gray-700 px-4 py-1.5 rounded-md text-sm hover:bg-gray-300" data-filter="passed">通过</button>
+                        <button class="filter-btn bg-gray-200 text-gray-700 px-4 py-1.5 rounded-md text-sm hover:bg-gray-300" data-filter="failed">未通过</button>
+                    </div>
+                </div>
+                
+                <!-- 结果统计 -->
+                <div id="resultStats" class="mb-3 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                    <div class="bg-blue-50 p-3 rounded-md">
+                        <p class="text-sm text-blue-600">总记录数</p>
+                        <p id="totalRecords" class="text-xl font-bold text-blue-800">0</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-md">
+                        <p class="text-sm text-green-600">通过数</p>
+                        <p id="passedRecords" class="text-xl font-bold text-green-800">0</p>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-md">
+                        <p class="text-sm text-red-600">未通过数</p>
+                        <p id="failedRecords" class="text-xl font-bold text-red-800">0</p>
+                    </div>
+                </div>
+                
+                <!-- 结果表格 -->
+                <div id="resultsContainer" class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 table-compact">
+                        <thead>
+                            <tr>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">学号</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">活动名称</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">申请分数</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">审查结果</th>
+                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">问题描述</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable" class="bg-white divide-y divide-gray-200">
+                            <!-- 结果会动态添加到这里 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 分页控件 -->
+                <div id="paginationContainer" class="mt-4 flex items-center justify-between hidden">
+                    <div class="flex items-center space-x-2 text-sm text-gray-600">
+                        <span>每页显示</span>
+                        <select id="pageSizeSelect" class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>条记录</span>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button id="firstPageBtn" class="pagination-btn px-3 py-1.5 text-sm border border-gray-300 rounded-md" disabled>
+                            <i class="fa fa-angle-double-left"></i>
+                        </button>
+                        <button id="prevPageBtn" class="pagination-btn px-3 py-1.5 text-sm border border-gray-300 rounded-md" disabled>
+                            <i class="fa fa-angle-left"></i>
+                        </button>
+                        
+                        <div class="flex items-center space-x-1">
+                            <span class="text-sm text-gray-600">第</span>
+                            <input id="currentPageInput" type="number" min="1" class="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+                            <span class="text-sm text-gray-600">页，共</span>
+                            <span id="totalPages" class="text-sm font-medium text-gray-800">1</span>
+                            <span class="text-sm text-gray-600">页</span>
+                        </div>
+                        
+                        <button id="nextPageBtn" class="pagination-btn px-3 py-1.5 text-sm border border-gray-300 rounded-md">
+                            <i class="fa fa-angle-right"></i>
+                        </button>
+                        <button id="lastPageBtn" class="pagination-btn px-3 py-1.5 text-sm border border-gray-300 rounded-md">
+                            <i class="fa fa-angle-double-right"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="text-sm text-gray-600">
+                        显示 <span id="startRecord">1</span> - <span id="endRecord">10</span> 条，共 <span id="totalRecordsDisplay">0</span> 条记录
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 全屏拖拽上传提示覆盖层 -->
+    <div id="dragOverlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-40 hidden">
+        <div class="w-full h-full flex flex-col items-center justify-center select-none">
+            <div class="border-4 border-dashed border-gray-300 rounded-3xl p-20 max-w-6xl w-11/12 text-center bg-white/80 shadow-2xl">
+                <i class="fa fa-cloud-upload text-6xl text-gray-400 mb-5"></i>
+                <h3 class="text-4xl font-semibold text-gray-700 mb-3 tracking-wide">文件拖动到此处即可上传</h3>
+                <p class="text-gray-500 text-xl">支持 Excel、CSV、Word 文档等</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto mx-4 fade-in">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold">使用帮助</h3>
+                    <button id="closeHelpModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">1. 文件上传</h4>
+                    <p class="text-gray-600 text-sm">支持上传Excel、CSV和Word格式的文件，可批量上传多个文件。系统会自动解析文件中的学生活动积分信息。</p>
+                </div>
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">2. 审查规则设置</h4>
+                    <p class="text-gray-600 text-sm">可以设置三种类型的规则：</p>
+                    <ul class="list-disc list-inside text-gray-600 text-sm mt-1 space-y-1">
+                        <li>活动名称与分数：设置标准活动名称和对应的分数</li>
+                        <li>学号审核：使用正则表达式设置学号的格式规则</li>
+                        <li>部门规则：设置有效的部门名称列表</li>
+                    </ul>
+                </div>
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">3. 开始审查</h4>
+                    <p class="text-gray-600 text-sm">点击"开始审查"按钮，系统会根据设置的规则对上传的文件进行审查，并显示审查结果。</p>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">4. 导出结果</h4>
+                    <p class="text-gray-600 text-sm">审查完成后，可以导出审查结果为Excel文件，方便保存和进一步处理。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 活动规则提示模态框 -->
+    <div id="activityRuleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-md w-full mx-4 fade-in">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0">
+                        <i class="fa fa-exclamation-triangle text-warning text-3xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-lg font-semibold text-gray-900">需要添加活动规则</h3>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-600">在进行审查之前，请先添加活动规则。</p>
+                    <p class="text-gray-600 mt-2">活动规则用于验证学生提交的活动名称和分数是否符合标准。</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="closeActivityRuleModal" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                        我知道了
+                    </button>
+                    <button id="goToActivityRules" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200">
+                        <i class="fa fa-plus mr-1"></i>添加活动规则
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 学号规则提示模态框 -->
+    <div id="studentIdRuleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-md w-full mx-4 fade-in">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0">
+                        <i class="fa fa-exclamation-triangle text-warning text-3xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-lg font-semibold text-gray-900">需要添加学号规则</h3>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-600">在进行审查之前，请先添加学号规则。</p>
+                    <p class="text-gray-600 mt-2">学号规则用于验证学生学号的格式和长度是否符合要求。</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="closeStudentIdRuleModal" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                        我知道了
+                    </button>
+                    <button id="goToStudentIdRules" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200">
+                        <i class="fa fa-plus mr-1"></i>添加学号规则
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 部门规则提示模态框 -->
+    <div id="departmentRuleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-md w-full mx-4 fade-in">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0">
+                        <i class="fa fa-exclamation-triangle text-warning text-3xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-lg font-semibold text-gray-900">需要添加部门规则</h3>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-600">在进行审查之前，请先添加部门规则。</p>
+                    <p class="text-gray-600 mt-2">部门规则用于验证学生所在部门是否在有效部门列表中。</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="closeDepartmentRuleModal" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                        我知道了
+                    </button>
+                    <button id="goToDepartmentRules" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200">
+                        <i class="fa fa-plus mr-1"></i>添加部门规则
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/globals.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/parsers.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/review.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/dragdrop.js"></script>
+    <script src="js/init.js"></script>
+</body>
+</html>
