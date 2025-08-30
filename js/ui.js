@@ -40,12 +40,15 @@ function formatIssues(issues) {
             return `<span class="text-red-600 font-semibold">${trimmedPart}</span>`;
         } else if (trimmedPart.includes('部门规则未添加')) {
             return `<span class="text-red-600 font-semibold">${trimmedPart}</span>`;
+        } else if (trimmedPart.includes('合计分数有误')) {
+            return `<span class="text-red-600 font-semibold bg-red-100 px-3 py-1 text-xs font-medium rounded border border-red-200">${trimmedPart}</span>`;
         } else {
             return `<span class="text-gray-700">${trimmedPart}</span>`;
         }
     });
     
-    return formattedParts.join('; ');
+    // 以分号为分隔符分行显示，每行居中
+    return formattedParts.map(part => `<div class="text-center">${part}</div>`).join('');
 }
 
 window.updateResultsTable = function() {
@@ -97,8 +100,8 @@ window.updateResultsTable = function() {
         row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
         // 为审查结果添加圆角底色边框
         const resultBadge = result.passed 
-            ? '<span class="inline-block px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full border border-green-200">通过</span>'
-            : '<span class="inline-block px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full border border-red-200">未通过</span>';
+            ? '<span class="inline-block px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded border border-green-200">通过</span>'
+            : '<span class="inline-block px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded border border-red-200">未通过</span>';
         
         const deptDisplay = (result.department && result.department !== '未知') ? result.department : '<span class="text-red-600">未填写部门</span>';
         const sequenceNumber = startIndex + index + 1;
@@ -114,7 +117,7 @@ window.updateResultsTable = function() {
             <td class="px-4 py-2 text-sm text-gray-700">${result.activityName}</td>
             <td class="px-4 py-2 text-sm text-gray-700">${result.score}</td>
             <td class="px-4 py-2 text-sm text-center">${resultBadge}</td>
-            <td class="px-4 py-2 text-sm text-gray-700">${formattedIssues}</td>
+            <td class="px-4 py-2 text-sm text-gray-700 w-48 break-words whitespace-normal">${formattedIssues}</td>
         `;
         resultsTable.appendChild(row);
     });
