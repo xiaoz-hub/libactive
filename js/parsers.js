@@ -7,6 +7,8 @@ function parseWordTextToRecords(text) {
             .replace(/\u00A0/g, ' ')
             .replace(/[ \t\u00A0]+/g, ' ');
         const lines = text.split('\n');
+        
+        // 首先尝试特殊表格格式
         const specialTableRecords = parseSpecialTableFormat(text);
         console.log('parseSpecialTableFormat 结果:', specialTableRecords);
         if (specialTableRecords.length > 0) { 
@@ -14,23 +16,96 @@ function parseWordTextToRecords(text) {
             records.push(...specialTableRecords); 
             return records; 
         }
+        
+        // 尝试提取所有可能的记录
         const allRecords = extractAllPossibleRecords(lines);
-        if (allRecords.length > 0) { records.push(...allRecords); return records; }
+        if (allRecords.length > 0) { 
+            console.log('使用 extractAllPossibleRecords，数量:', allRecords.length);
+            records.push(...allRecords); 
+            return records; 
+        }
+        
+        // 尝试段落格式
         const paragraphs = text.split(/\n\n+/);
         const paragraphRecords = extractParagraphRecords(paragraphs);
-        if (paragraphRecords.length > 0) { records.push(...paragraphRecords); return records; }
-        let currentRecord = {}; let inActivitySection = false; let activityLines = [];
-        lines.forEach((line) => {
-            line = line.trim(); if (!line) return;
-            if (inActivitySection) { activityLines.push(line); if (line.includes('合计') || line.includes('总分') || line.includes('总计')) { inActivitySection = false; parseActivityLines(activityLines, currentRecord, records); activityLines = []; currentRecord = {}; } return; }
-            if (((/姓\s*名/.test(line)) || line.includes('姓名') || line.includes('学生姓名')) && !currentRecord['姓名']) currentRecord['姓名'] = extractField(line, ['姓名', '学生姓名', '姓\\s*名']);
-            if ((line.includes('学号') || line.includes('编号')) && !currentRecord['学号']) currentRecord['学号'] = extractField(line, ['学号', '编号'], /\d+/);
-            if ((line.includes('所在部门') || line.includes('部门') || line.includes('学院') || line.includes('系别') || line.includes('单位') || line.includes('组织') || line.includes('所属学院') || line.includes('所在学院')) && !currentRecord['所在部门']) currentRecord['所在部门'] = normalizeDepartment(extractField(line, ['所在部门', '部门', '学院', '系别', '单位', '组织', '所属学院', '所在学院']));
-            if ((line.includes('实践活动') && line.includes('序号')) || line.includes('所参加的活动') || line.includes('活动名称') || line.includes('活动列表') || (line.includes('序号') && (line.includes('活动') || line.includes('内容')))) { inActivitySection = true; activityLines.push(line); }
-            if (Object.keys(currentRecord).length > 0) tryExtractActivityFromLine(line, currentRecord, records);
+        if (paragraphRecords.length > 0) { 
+            console.log('使用 extractParagraphRecords，数量:', paragraphRecords.length);
+            records.push(...paragraphRecords); 
+            return records; 
+        }
+        
+        // 最后尝试逐行解析
+        let currentRecord = {}; 
+        let inActivitySection = false; 
+        let activityLines = [];
+        let extractedCount = 0;
+        
+        lines.forEach((line, lineIndex) => {
+            line = line.trim(); 
+            if (!line) return;
+            
+            // 如果在活动区域内
+            if (inActivitySection) { 
+                activityLines.push(line); 
+                // 检查是否到达活动区域结束
+                if (line.includes('合计') || line.includes('总分') || line.includes('总计')) { 
+                    inActivitySection = false; 
+                    console.log('活动区域结束，处理活动行数:', activityLines.length);
+                    parseActivityLines(activityLines, currentRecord, records); 
+                    activityLines = []; 
+                    currentRecord = {}; 
+                } 
+                return; // 在活动区域内不进行即时提取
+            }
+            
+            // 提取基本信息
+            if (((/姓\s*名/.test(line)) || line.includes('姓名') || line.includes('学生姓名')) && !currentRecord['姓名']) {
+                currentRecord['姓名'] = extractField(line, ['姓名', '学生姓名', '姓\\s*名']);
+            }
+            if ((line.includes('学号') || line.includes('编号')) && !currentRecord['学号']) {
+                currentRecord['学号'] = extractField(line, ['学号', '编号'], /\d+/);
+            }
+            if ((line.includes('所在部门') || line.includes('部门') || line.includes('学院') || line.includes('系别') || line.includes('单位') || line.includes('组织') || line.includes('所属学院') || line.includes('所在学院')) && !currentRecord['所在部门']) {
+                currentRecord['所在部门'] = normalizeDepartment(extractField(line, ['所在部门', '部门', '学院', '系别', '单位', '组织', '所属学院', '所在学院']));
+            }
+            
+            // 检测活动区域开始
+            if ((line.includes('实践活动') && line.includes('序号')) || 
+                line.includes('所参加的活动') || 
+                line.includes('活动名称') || 
+                line.includes('活动列表') || 
+                (line.includes('序号') && (line.includes('活动') || line.includes('内容')))) { 
+                inActivitySection = true; 
+                activityLines.push(line); 
+                console.log('检测到活动区域开始，行:', lineIndex + 1);
+                return; 
+            }
+            
+            // 如果不在活动区域内，尝试即时提取活动
+            if (Object.keys(currentRecord).length > 0) {
+                const beforeCount = records.length;
+                tryExtractActivityFromLine(line, currentRecord, records);
+                if (records.length > beforeCount) {
+                    extractedCount++;
+                    console.log('即时提取活动成功，行:', lineIndex + 1);
+                }
+            }
         });
-        if (activityLines.length > 0 && Object.keys(currentRecord).length > 0) parseActivityLines(activityLines, currentRecord, records);
-        if (records.length === 0) return parseAlternativeFormat(text);
+        
+        // 处理剩余的活动行
+        if (activityLines.length > 0 && Object.keys(currentRecord).length > 0) {
+            console.log('处理剩余活动行，数量:', activityLines.length);
+            parseActivityLines(activityLines, currentRecord, records);
+        }
+        
+        // 如果所有方法都失败，尝试备用格式
+        if (records.length === 0) {
+            console.log('尝试备用解析格式');
+            const alternativeRecords = parseAlternativeFormat(text);
+            if (alternativeRecords.length > 0) {
+                records.push(...alternativeRecords);
+            }
+        }
 
         // Fallback: 如果记录里缺少姓名/部门，尝试从全文兜底提取一次并回填
         const fallbackName = extractGlobalName(text);
@@ -41,6 +116,9 @@ function parseWordTextToRecords(text) {
                 if (!r['所在部门'] || r['所在部门'] === '未知') r['所在部门'] = fallbackDept || r['所在部门'] || '未知';
             });
         }
+        
+        console.log('最终提取结果，总数量:', records.length);
+        
     } catch (error) {
         console.error('解析Word文本出错:', error);
         showNotification('解析Word文档时出错: ' + error.message, 'error');
@@ -77,38 +155,91 @@ function extractField(line, keywords, pattern = null) {
 }
 
 function tryExtractActivityFromLine(line, currentRecord, records) {
-    // 跳过包含字段标签的行
-    if (line.includes('加分') || line.includes('活动名称') || line.includes('序号') || line.includes('姓名') || line.includes('学号') || line.includes('部门')) {
+    // 跳过包含字段标签的行，但允许活动名称中包含这些词
+    if (line.trim().match(/^(加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织)[：:]/)) {
         return;
     }
     
-    // 检查是否包含数字（可能是分数）
-    if (/\d/.test(line)) {
-        const scoreMatch = line.match(/([\d.]+)$/);
+    // 跳过明显的活动区域标记行
+    if (line.includes('所参加的活动') || line.includes('活动列表') || line.includes('活动记录')) {
+        return;
+    }
+    
+    // 改进的分数匹配正则表达式，支持更多格式
+    const scorePatterns = [
+        /([\d.]+)\s*$/,           // 行末分数
+        /[\s\t]+([\d.]+)\s*$/,    // 制表符或空格分隔的分数
+        /[：:]\s*([\d.]+)\s*$/,   // 冒号分隔的分数
+        /[（(]\s*([\d.]+)\s*[）)]\s*$/, // 括号中的分数
+    ];
+    
+    let score = null;
+    let activityName = line;
+    
+    // 尝试多种分数匹配模式
+    for (const pattern of scorePatterns) {
+        const scoreMatch = line.match(pattern);
         if (scoreMatch) {
-            const score = parseFloat(scoreMatch[1]);
+            score = parseFloat(scoreMatch[1]);
             if (!isNaN(score) && score > 0) {
-                let activityName = line.replace(/[\d.]+$/, '').trim();
-                console.log('原始活动名称:', activityName);
-                
-                // 智能移除开头的序号，但保留年份信息
-                // 只移除真正的序号（如"1."、"2."等），保留年份（如"2024"）
-                // 判断逻辑：如果开头是1-2位数字+点号+空格，则认为是序号
-                if (/^\d{1,2}\.\s/.test(activityName)) {
-                    // 移除序号（如"1. "、"2. "等）
-                    activityName = activityName.replace(/^\d{1,2}\.\s/, '');
-                }
-                console.log('移除序号后的活动名称:', activityName);
-                
-                // 过滤掉字段标签和无效内容
-                if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
-                    const activityRecord = Object.assign({}, currentRecord);
-                    activityRecord['所参加的活动及担任角色'] = activityName;
-                    activityRecord['加分'] = score;
-                    console.log('添加活动记录:', activityRecord);
-                    records.push(activityRecord);
-                }
+                // 移除分数部分，获取活动名称
+                activityName = line.replace(pattern, '').trim();
+                break;
             }
+        }
+    }
+    
+    if (score && !isNaN(score) && score > 0) {
+        console.log('原始活动名称:', activityName);
+        
+        // 改进的序号处理逻辑
+        // 支持更多序号格式：1. 1、 1) 1） (1) （1）等
+        const numberPatterns = [
+            /^\d{1,2}\.\s/,      // 1. 
+            /^\d{1,2}、\s/,      // 1、
+            /^\d{1,2}\)\s/,      // 1)
+            /^\d{1,2}）\s/,      // 1）
+            /^\(\d{1,2}\)\s/,    // (1)
+            /^（\d{1,2}）\s/,    // （1）
+            /^\d{1,2}\s/,        // 1 (单个数字后跟空格)
+        ];
+        
+        for (const pattern of numberPatterns) {
+            if (pattern.test(activityName)) {
+                activityName = activityName.replace(pattern, '');
+                break;
+            }
+        }
+        
+        console.log('移除序号后的活动名称:', activityName);
+        
+        // 清理活动名称
+        activityName = activityName
+            .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '') // 移除开头的非文字数字字符
+            .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '') // 移除结尾的无效字符
+            .trim();
+        
+        // 放宽过滤条件，只过滤明显的表头行
+        const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+        const isTooShort = activityName.length < 2;
+        const isOnlyNumbers = /^\d+$/.test(activityName);
+        const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+        
+        // 检查是否已经存在相同的活动记录
+        const existingRecord = records.find(r => 
+            r['所参加的活动及担任角色'] === activityName && 
+            r['加分'] === score &&
+            r['姓名'] === currentRecord['姓名']
+        );
+        
+        if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !existingRecord) {
+            const activityRecord = Object.assign({}, currentRecord);
+            activityRecord['所参加的活动及担任角色'] = activityName;
+            activityRecord['加分'] = score;
+            console.log('添加活动记录:', activityRecord);
+            records.push(activityRecord);
+        } else if (existingRecord) {
+            console.log('跳过重复的活动记录:', activityName);
         }
     }
 }
@@ -137,23 +268,65 @@ function extractAllPossibleRecords(lines) {
             return;
         }
         
-        const scoreMatch = line.match(/([\d.]+)$/);
-        if (scoreMatch) { 
-            const score = parseFloat(scoreMatch[1]); 
-            if (!isNaN(score) && score > 0) { 
-                let activityName = line.replace(/[\d.]+$/, '').trim(); 
-                // 智能移除开头的序号，但保留年份信息
-                // 只移除真正的序号（如"1."、"2."等），保留年份（如"2024"）
-                // 判断逻辑：如果开头是1-2位数字+点号+空格，则认为是序号
-                if (/^\d{1,2}\.\s/.test(activityName)) {
-                    // 移除序号（如"1. "、"2. "等）
-                    activityName = activityName.replace(/^\d{1,2}\.\s/, '');
+        // 改进的分数匹配正则表达式，支持更多格式
+        const scorePatterns = [
+            /([\d.]+)\s*$/,           // 行末分数
+            /[\s\t]+([\d.]+)\s*$/,    // 制表符或空格分隔的分数
+            /[：:]\s*([\d.]+)\s*$/,   // 冒号分隔的分数
+            /[（(]\s*([\d.]+)\s*[）)]\s*$/, // 括号中的分数
+        ];
+        
+        let score = null;
+        let activityName = line;
+        
+        // 尝试多种分数匹配模式
+        for (const pattern of scorePatterns) {
+            const scoreMatch = line.match(pattern);
+            if (scoreMatch) {
+                score = parseFloat(scoreMatch[1]);
+                if (!isNaN(score) && score > 0) {
+                    // 移除分数部分，获取活动名称
+                    activityName = line.replace(pattern, '').trim();
+                    break;
                 }
-                // 过滤掉字段标签和无效内容
-                if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
-                    currentActivities.push({ name: activityName, score: score }); 
+            }
+        }
+        
+        if (score && !isNaN(score) && score > 0) { 
+            // 改进的序号处理逻辑
+            // 支持更多序号格式：1. 1、 1) 1） (1) （1）等
+            const numberPatterns = [
+                /^\d{1,2}\.\s/,      // 1. 
+                /^\d{1,2}、\s/,      // 1、
+                /^\d{1,2}\)\s/,      // 1)
+                /^\d{1,2}）\s/,      // 1）
+                /^\(\d{1,2}\)\s/,    // (1)
+                /^（\d{1,2}）\s/,    // （1）
+                /^\d{1,2}\s/,        // 1 (单个数字后跟空格)
+            ];
+            
+            for (const pattern of numberPatterns) {
+                if (pattern.test(activityName)) {
+                    activityName = activityName.replace(pattern, '');
+                    break;
                 }
-            } 
+            }
+            
+            // 清理活动名称
+            activityName = activityName
+                .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '') // 移除开头的非文字数字字符
+                .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '') // 移除结尾的无效字符
+                .trim();
+            
+            // 放宽过滤条件，只过滤明显的表头行
+            const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+            const isTooShort = activityName.length < 2;
+            const isOnlyNumbers = /^\d+$/.test(activityName);
+            const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+            
+            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+                currentActivities.push({ name: activityName, score: score }); 
+            }
         }
     });
     if (Object.keys(currentPerson).length > 0 || currentActivities.length > 0) {
@@ -198,23 +371,65 @@ function extractParagraphRecords(paragraphs) {
                 return;
             }
             
-            const scoreMatch = line.match(/([\d.]+$)/); 
-            if (scoreMatch) { 
-                const score = parseFloat(scoreMatch[1]); 
-                if (!isNaN(score) && score > 0) { 
-                    let activityName = line.replace(/[\d.]+$/, '').trim(); 
-                    // 智能移除开头的序号，但保留年份信息
-                    // 只移除真正的序号（如"1."、"2."等），保留年份（如"2024"）
-                    // 判断逻辑：如果开头是1-2位数字+点号+空格，则认为是序号
-                    if (/^\d{1,2}\.\s/.test(activityName)) {
-                        // 移除序号（如"1. "、"2. "等）
-                        activityName = activityName.replace(/^\d{1,2}\.\s/, '');
+            // 改进的分数匹配正则表达式，支持更多格式
+            const scorePatterns = [
+                /([\d.]+)\s*$/,           // 行末分数
+                /[\s\t]+([\d.]+)\s*$/,    // 制表符或空格分隔的分数
+                /[：:]\s*([\d.]+)\s*$/,   // 冒号分隔的分数
+                /[（(]\s*([\d.]+)\s*[）)]\s*$/, // 括号中的分数
+            ];
+            
+            let score = null;
+            let activityName = line;
+            
+            // 尝试多种分数匹配模式
+            for (const pattern of scorePatterns) {
+                const scoreMatch = line.match(pattern);
+                if (scoreMatch) {
+                    score = parseFloat(scoreMatch[1]);
+                    if (!isNaN(score) && score > 0) {
+                        // 移除分数部分，获取活动名称
+                        activityName = line.replace(pattern, '').trim();
+                        break;
                     }
-                    // 过滤掉字段标签和无效内容
-                    if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
-                        activities.push({ name: activityName, score: score }); 
+                }
+            }
+            
+            if (score && !isNaN(score) && score > 0) { 
+                // 改进的序号处理逻辑
+                // 支持更多序号格式：1. 1、 1) 1） (1) （1）等
+                const numberPatterns = [
+                    /^\d{1,2}\.\s/,      // 1. 
+                    /^\d{1,2}、\s/,      // 1、
+                    /^\d{1,2}\)\s/,      // 1)
+                    /^\d{1,2}）\s/,      // 1）
+                    /^\(\d{1,2}\)\s/,    // (1)
+                    /^（\d{1,2}）\s/,    // （1）
+                    /^\d{1,2}\s/,        // 1 (单个数字后跟空格)
+                ];
+                
+                for (const pattern of numberPatterns) {
+                    if (pattern.test(activityName)) {
+                        activityName = activityName.replace(pattern, '');
+                        break;
                     }
-                } 
+                }
+                
+                // 清理活动名称
+                activityName = activityName
+                    .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '') // 移除开头的非文字数字字符
+                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '') // 移除结尾的无效字符
+                    .trim();
+                
+                // 放宽过滤条件，只过滤明显的表头行
+                const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+                const isTooShort = activityName.length < 2;
+                const isOnlyNumbers = /^\d+$/.test(activityName);
+                const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+                
+                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+                    activities.push({ name: activityName, score: score }); 
+                }
             } 
         });
         activities.forEach(activity => {
@@ -285,66 +500,199 @@ function parseAlternativeFormat(text) {
 }
 
 function parseActivityLines(lines, currentRecord, records) {
-    lines.forEach(line => { 
+    console.log('parseActivityLines 开始处理，行数:', lines.length);
+    console.log('当前记录信息:', currentRecord);
+    
+    let processedCount = 0;
+    let skippedCount = 0;
+    
+    lines.forEach((line, index) => { 
         line = line.trim(); 
-        if (!line || line.includes('合计') || line.includes('序号') || line.includes('总分') || line.includes('总计')) return; 
-        
-        // 跳过包含字段标签的行
-        if (line.includes('加分') || line.includes('活动名称') || line.includes('姓名') || line.includes('学号') || line.includes('部门')) {
+        if (!line) {
+            console.log(`行 ${index + 1}: 空行，跳过`);
             return;
         }
         
+        // 跳过明显的结束标记
+        if (line.includes('合计') || line.includes('序号') || line.includes('总分') || line.includes('总计')) {
+            console.log(`行 ${index + 1}: 结束标记 "${line}"，跳过`);
+            return;
+        }
+        
+        // 跳过明显的表头行，但允许活动名称中包含这些词
+        if (line.trim().match(/^(加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织)[：:]/)) {
+            console.log(`行 ${index + 1}: 表头行 "${line}"，跳过`);
+            skippedCount++;
+            return;
+        }
+        
+        console.log(`行 ${index + 1}: 处理 "${line}"`);
+        
+        // 处理带序号的表格格式
         if (/^\d+[\s\t]+/.test(line)) { 
+            console.log(`行 ${index + 1}: 检测到序号格式`);
             let activityMatch = line.match(/^\d+[\s\t]+(.+?)[\s\t]+(\d+(?:\.\d+)?)$/); 
             if (activityMatch && activityMatch.length >= 3) { 
                 const activityName = activityMatch[1].trim();
-                // 过滤掉字段标签和无效内容
-                if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                const score = parseFloat(activityMatch[2]);
+                
+                console.log(`行 ${index + 1}: 序号格式匹配成功，活动名称: "${activityName}", 分数: ${score}`);
+                
+                // 清理活动名称
+                const cleanedName = activityName
+                    .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '')
+                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '')
+                    .trim();
+                
+                // 验证活动名称
+                const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+                const isTooShort = cleanedName.length < 2;
+                const isOnlyNumbers = /^\d+$/.test(cleanedName);
+                const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(cleanedName);
+                
+                if (!isHeaderRow.test(cleanedName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isNaN(score) && score > 0) {
                     const activityRecord = Object.assign({}, currentRecord); 
-                    activityRecord['所参加的活动及担任角色'] = activityName; 
-                    activityRecord['加分'] = parseFloat(activityMatch[2]); 
-                    records.push(activityRecord); 
+                    activityRecord['所参加的活动及担任角色'] = cleanedName; 
+                    activityRecord['加分'] = score; 
+                    records.push(activityRecord);
+                    processedCount++;
+                    console.log(`行 ${index + 1}: 添加活动记录成功`);
+                } else {
+                    console.log(`行 ${index + 1}: 验证失败，跳过`);
+                    skippedCount++;
                 }
                 return; 
-            } 
-                        // 智能移除开头的序号，但保留年份信息
-            // 只移除真正的序号（如"1."、"2."等），保留年份（如"2024"）
-            // 判断逻辑：如果开头是1-2位数字+点号+空格，则认为是序号
-            let activityName = line;
-            if (/^\d{1,2}\.\s/.test(line)) {
-                // 移除序号（如"1. "、"2. "等）
-                activityName = line.replace(/^\d{1,2}\.\s/, '');
+            } else {
+                console.log(`行 ${index + 1}: 序号格式匹配失败`);
             }
-            console.log('parseActivityLines - 移除序号后的活动名称:', activityName);
-            
-            const scoreMatch = activityName.match(/([\d.]+)$/); 
-            if (scoreMatch) { 
-                activityName = activityName.replace(/[\d.]+$/, '').trim();
-                console.log('parseActivityLines - 最终活动名称:', activityName);
-                
-                // 过滤掉字段标签和无效内容
-                if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
-                    const activityRecord = Object.assign({}, currentRecord); 
-                    activityRecord['加分'] = parseFloat(scoreMatch[1]); 
-                    activityRecord['所参加的活动及担任角色'] = activityName; 
-                    console.log('parseActivityLines - 添加活动记录:', activityRecord);
-                    records.push(activityRecord); 
+        }
+        
+        // 处理普通格式的活动行
+        // 改进的分数匹配正则表达式，支持更多格式
+        const scorePatterns = [
+            /([\d.]+)\s*$/,           // 行末分数
+            /[\s\t]+([\d.]+)\s*$/,    // 制表符或空格分隔的分数
+            /[：:]\s*([\d.]+)\s*$/,   // 冒号分隔的分数
+            /[（(]\s*([\d.]+)\s*[）)]\s*$/, // 括号中的分数
+        ];
+        
+        let score = null;
+        let activityName = line;
+        let matchedPattern = null;
+        
+        // 尝试多种分数匹配模式
+        for (const pattern of scorePatterns) {
+            const scoreMatch = line.match(pattern);
+            if (scoreMatch) {
+                score = parseFloat(scoreMatch[1]);
+                if (!isNaN(score) && score > 0) {
+                    // 移除分数部分，获取活动名称
+                    activityName = line.replace(pattern, '').trim();
+                    matchedPattern = pattern.toString();
+                    break;
                 }
-            } 
+            }
+        }
+        
+        if (score && !isNaN(score) && score > 0) {
+            console.log(`行 ${index + 1}: 分数匹配成功，模式: ${matchedPattern}, 分数: ${score}`);
+            console.log(`行 ${index + 1}: 原始活动名称: "${activityName}"`);
+            
+            // 改进的序号处理逻辑
+            // 支持更多序号格式：1. 1、 1) 1） (1) （1）等
+            const numberPatterns = [
+                /^\d{1,2}\.\s/,      // 1. 
+                /^\d{1,2}、\s/,      // 1、
+                /^\d{1,2}\)\s/,      // 1)
+                /^\d{1,2}）\s/,      // 1）
+                /^\(\d{1,2}\)\s/,    // (1)
+                /^（\d{1,2}）\s/,    // （1）
+                /^\d{1,2}\s/,        // 1 (单个数字后跟空格)
+            ];
+            
+            let removedNumber = false;
+            for (const pattern of numberPatterns) {
+                if (pattern.test(activityName)) {
+                    activityName = activityName.replace(pattern, '');
+                    removedNumber = true;
+                    console.log(`行 ${index + 1}: 移除序号，模式: ${pattern.toString()}`);
+                    break;
+                }
+            }
+            
+            console.log(`行 ${index + 1}: 移除序号后的活动名称: "${activityName}"`);
+            
+            // 清理活动名称
+            activityName = activityName
+                .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '') // 移除开头的非文字数字字符
+                .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '') // 移除结尾的无效字符
+                .trim();
+            
+            console.log(`行 ${index + 1}: 最终活动名称: "${activityName}"`);
+            
+            // 放宽过滤条件，只过滤明显的表头行
+            const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+            const isTooShort = activityName.length < 2;
+            const isOnlyNumbers = /^\d+$/.test(activityName);
+            const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+            
+            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+                const activityRecord = Object.assign({}, currentRecord); 
+                activityRecord['加分'] = score; 
+                activityRecord['所参加的活动及担任角色'] = activityName; 
+                records.push(activityRecord);
+                processedCount++;
+                console.log(`行 ${index + 1}: 添加活动记录成功: "${activityName}" (${score}分)`);
+            } else {
+                console.log(`行 ${index + 1}: 验证失败，跳过。原因:`, {
+                    isHeaderRow: isHeaderRow.test(activityName),
+                    isTooShort,
+                    isOnlyNumbers,
+                    isOnlyPunctuation
+                });
+                skippedCount++;
+            }
         } else { 
+            // 备用匹配模式：活动名称 + 空格/制表符 + 分数
+            console.log(`行 ${index + 1}: 尝试备用匹配模式`);
             const scoreMatch = line.match(/(.+?)[\s\t]+(\d+(?:\.\d+)?)$/); 
             if (scoreMatch && scoreMatch.length >= 3) { 
-                const activityName = scoreMatch[1].trim();
-                // 过滤掉字段标签和无效内容
-                if (activityName.length > 2 && !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                let activityName = scoreMatch[1].trim();
+                const score = parseFloat(scoreMatch[2]);
+                
+                console.log(`行 ${index + 1}: 备用模式匹配成功，活动名称: "${activityName}", 分数: ${score}`);
+                
+                // 清理活动名称
+                activityName = activityName
+                    .replace(/^[^\u4e00-\u9fa5a-zA-Z0-9]*/, '')
+                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-_()（）【】\[\]""''，,。.！!？?]*$/, '')
+                    .trim();
+                
+                // 验证活动名称
+                const isHeaderRow = /^(序号|活动名称|加分|姓名|学号|部门|学院|系别|单位|组织)\s*[：:]/;
+                const isTooShort = activityName.length < 2;
+                const isOnlyNumbers = /^\d+$/.test(activityName);
+                const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+                
+                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isNaN(score) && score > 0) {
                     const activityRecord = Object.assign({}, currentRecord); 
                     activityRecord['所参加的活动及担任角色'] = activityName; 
-                    activityRecord['加分'] = parseFloat(scoreMatch[2]); 
-                    records.push(activityRecord); 
+                    activityRecord['加分'] = score; 
+                    records.push(activityRecord);
+                    processedCount++;
+                    console.log(`行 ${index + 1}: 备用模式添加活动记录成功`);
+                } else {
+                    console.log(`行 ${index + 1}: 备用模式验证失败，跳过`);
+                    skippedCount++;
                 }
-            } 
+            } else {
+                console.log(`行 ${index + 1}: 所有匹配模式都失败，跳过`);
+                skippedCount++;
+            }
         } 
     });
+    
+    console.log(`parseActivityLines 处理完成，成功处理: ${processedCount} 个，跳过: ${skippedCount} 个`);
 }
 
 function parseSpecialTableFormat(text) {
@@ -397,37 +745,192 @@ function parseSpecialTableFormat(text) {
             department = extractGlobalDepartment(text);
         }
         const activities = []; 
-        // 使用更简单有效的正则表达式来匹配活动名称和分数
-        // 匹配格式：活动名称 + 空格/制表符 + 分数
-        // 活动名称可以包含数字（如年份），但会过滤掉以序号开头的行
-        const activityPattern = /([^0-9\n\r]*\d{4}[^0-9\n\r]*?|[^0-9\n\r]+?)\s+(\d+(?:\.\d+)?)/g;
+        
+        // 改进的活动匹配逻辑，支持多种格式，避免重复提取
         console.log('parseSpecialTableFormat - 开始解析活动，文本长度:', text.length);
         console.log('parseSpecialTableFormat - 文本预览:', text.substring(0, 200)); 
-        let match; 
-        while ((match = activityPattern.exec(text)) !== null) { 
+        
+        // 记录已匹配的位置，避免重复提取
+        const matchedPositions = new Set();
+        
+        // 方法1: 匹配带序号的格式 (1. 活动名称 分数) - 最高优先级
+        const numberedPattern = /^\d+[.\s、）\)]\s*(.+?)\s+(\d+(?:\.\d+)?)/gm;
+        let match;
+        while ((match = numberedPattern.exec(text)) !== null) { 
             let activityName = match[1].trim(); 
             const score = parseFloat(match[2]); 
-            console.log('parseSpecialTableFormat - 原始活动名称:', activityName);
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
             
-            // 智能移除开头的序号，但保留年份信息
-            // 只移除真正的序号（如"1."、"2."等），保留年份（如"2024"）
-            // 判断逻辑：如果开头是1-2位数字+点号+空格，则认为是序号
-            if (/^\d{1,2}\.\s/.test(activityName)) {
-                // 移除序号（如"1. "、"2. "等）
-                activityName = activityName.replace(/^\d{1,2}\.\s/, '');
-            } 
-            console.log('parseSpecialTableFormat - 移除序号后的活动名称:', activityName);
+            console.log('parseSpecialTableFormat - 序号格式匹配:', activityName, score, '位置:', matchStart, '-', matchEnd);
             
-            activityName = activityName.replace(/[。！？，、\s]+$/, ''); 
-            // 过滤掉字段标签和无效内容
             if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
                 !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
-                console.log('parseSpecialTableFormat - 最终活动名称:', activityName);
-                activities.push({ name: activityName, score }); 
+                console.log('parseSpecialTableFormat - 添加序号格式活动:', activityName);
+                activities.push({ name: activityName, score, priority: 1 }); 
+                
+                // 标记这个位置已经被匹配
+                for (let i = matchStart; i < matchEnd; i++) {
+                    matchedPositions.add(i);
+                }
             }
         }
-        if (activities.length > 0) {
-            activities.forEach(activity => {
+        
+        // 方法2: 匹配冒号格式 (活动名称：分数) - 第二优先级
+        const colonPattern = /([^：\n\r]+)：\s*(\d+(?:\.\d+)?)/g;
+        while ((match = colonPattern.exec(text)) !== null) { 
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
+            
+            // 检查这个位置是否已经被匹配
+            let alreadyMatched = false;
+            for (let i = matchStart; i < matchEnd; i++) {
+                if (matchedPositions.has(i)) {
+                    alreadyMatched = true;
+                    break;
+                }
+            }
+            
+            if (alreadyMatched) {
+                console.log('parseSpecialTableFormat - 跳过已匹配的冒号格式:', match[0]);
+                continue;
+            }
+            
+            let activityName = match[1].trim(); 
+            const score = parseFloat(match[2]); 
+            console.log('parseSpecialTableFormat - 冒号格式匹配:', activityName, score);
+            
+            if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                console.log('parseSpecialTableFormat - 添加冒号格式活动:', activityName);
+                activities.push({ name: activityName, score, priority: 2 }); 
+                
+                // 标记这个位置已经被匹配
+                for (let i = matchStart; i < matchEnd; i++) {
+                    matchedPositions.add(i);
+                }
+            }
+        }
+        
+        // 方法3: 匹配括号格式 (活动名称（分数）) - 第三优先级
+        const bracketPattern = /([^（\n\r]+)（\s*(\d+(?:\.\d+)?)\s*）/g;
+        while ((match = bracketPattern.exec(text)) !== null) { 
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
+            
+            // 检查这个位置是否已经被匹配
+            let alreadyMatched = false;
+            for (let i = matchStart; i < matchEnd; i++) {
+                if (matchedPositions.has(i)) {
+                    alreadyMatched = true;
+                    break;
+                }
+            }
+            
+            if (alreadyMatched) {
+                console.log('parseSpecialTableFormat - 跳过已匹配的括号格式:', match[0]);
+                continue;
+            }
+            
+            let activityName = match[1].trim(); 
+            const score = parseFloat(match[2]); 
+            console.log('parseSpecialTableFormat - 括号格式匹配:', activityName, score);
+            
+            if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                console.log('parseSpecialTableFormat - 添加括号格式活动:', activityName);
+                activities.push({ name: activityName, score, priority: 3 }); 
+                
+                // 标记这个位置已经被匹配
+                for (let i = matchStart; i < matchEnd; i++) {
+                    matchedPositions.add(i);
+                }
+            }
+        }
+        
+        // 方法4: 匹配空格分隔格式 (活动名称 分数) - 最低优先级，只匹配未被其他方法匹配的内容
+        const spacePattern = /([^0-9\n\r]+?)\s+(\d+(?:\.\d+)?)(?=\s|$)/g;
+        while ((match = spacePattern.exec(text)) !== null) { 
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
+            
+            // 检查这个位置是否已经被匹配
+            let alreadyMatched = false;
+            for (let i = matchStart; i < matchEnd; i++) {
+                if (matchedPositions.has(i)) {
+                    alreadyMatched = true;
+                    break;
+                }
+            }
+            
+            if (alreadyMatched) {
+                console.log('parseSpecialTableFormat - 跳过已匹配的空格格式:', match[0]);
+                continue;
+            }
+            
+            let activityName = match[1].trim(); 
+            const score = parseFloat(match[2]); 
+            console.log('parseSpecialTableFormat - 空格格式匹配:', activityName, score);
+            
+            // 过滤掉明显的非活动内容
+            if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|合计|总计|总分/.test(activityName) &&
+                !/^\d+$/.test(activityName) && // 不是纯数字
+                !/^[^\u4e00-\u9fa5]+$/.test(activityName)) { // 包含中文
+                console.log('parseSpecialTableFormat - 添加空格格式活动:', activityName);
+                activities.push({ name: activityName, score, priority: 4 }); 
+                
+                // 标记这个位置已经被匹配
+                for (let i = matchStart; i < matchEnd; i++) {
+                    matchedPositions.add(i);
+                }
+            }
+        }
+        
+        // 智能去重：优先保留更完整的活动名称（包含年份的版本）
+        const uniqueActivities = [];
+        const seen = new Map(); // 使用Map来存储活动名称和对应的活动对象
+        
+        activities.forEach(activity => {
+            const key = activity.name + '|' + activity.score;
+            
+            if (!seen.has(key)) {
+                // 第一次遇到这个活动，直接添加
+                seen.set(key, activity);
+                uniqueActivities.push(activity);
+            } else {
+                // 已经存在这个活动，比较哪个更完整
+                const existing = seen.get(key);
+                const existingName = existing.name;
+                const newName = activity.name;
+                
+                // 优先保留包含年份的版本
+                const existingHasYear = /\d{4}/.test(existingName);
+                const newHasYear = /\d{4}/.test(newName);
+                
+                if (newHasYear && !existingHasYear) {
+                    // 新版本包含年份，旧版本不包含，替换
+                    console.log('parseSpecialTableFormat - 替换为更完整的活动名称:', existingName, '->', newName);
+                    const index = uniqueActivities.indexOf(existing);
+                    uniqueActivities[index] = activity;
+                    seen.set(key, activity);
+                } else if (newHasYear === existingHasYear) {
+                    // 都包含年份或都不包含年份，优先保留优先级更高的（数字更小的）
+                    if (activity.priority < existing.priority) {
+                        console.log('parseSpecialTableFormat - 替换为优先级更高的活动:', existingName, '->', newName);
+                        const index = uniqueActivities.indexOf(existing);
+                        uniqueActivities[index] = activity;
+                        seen.set(key, activity);
+                    }
+                }
+                // 如果旧版本包含年份而新版本不包含，保持旧版本
+            }
+        });
+        
+        console.log('parseSpecialTableFormat - 最终活动数量:', uniqueActivities.length);
+        
+        if (uniqueActivities.length > 0) {
+            uniqueActivities.forEach(activity => {
                 records.push({
                     '姓名': name || '未知',
                     '学号': studentId,
@@ -559,11 +1062,23 @@ window.processFile = function(file) {
                         } catch (e) { /* 如果没有JSZip或解析失败则忽略OCR流程，不影响文本解析 */ }
                         const records = parseWordTextToRecords(text);
                         console.log('Word文档解析结果:', records);
-                        records.forEach(record => {
-                            console.log('处理记录:', record);
-                            const reviewResult = reviewRecord(record);
-                            reviewResults.push(reviewResult);
-                        });
+                        
+                        // 使用新的合计比对功能
+                        if (window.reviewRecordsWithTotal && records.length > 0) {
+                            const reviewResult = reviewRecordsWithTotal(records, text);
+                            // 将审查结果添加到全局变量中
+                            if (reviewResult && reviewResult.reviewResults) {
+                                reviewResults.push(...reviewResult.reviewResults);
+                            }
+                        } else {
+                            // 回退到原来的审查方式
+                            records.forEach(record => {
+                                console.log('处理记录:', record);
+                                const reviewResult = reviewRecord(record);
+                                reviewResults.push(reviewResult);
+                            });
+                        }
+                        
                         resolve();
                     })
                     .catch(function(error) {
@@ -587,10 +1102,22 @@ window.processFile = function(file) {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    jsonData.forEach(row => {
-                        const result = reviewRecord(row);
-                        reviewResults.push(result);
-                    });
+                    
+                    // 对于Excel文件，也进行合计比对（如果有原始文本的话）
+                    if (window.reviewRecordsWithTotal && jsonData.length > 0) {
+                        // 尝试从Excel中提取文本内容用于合计比对
+                        const excelText = XLSX.utils.sheet_to_txt(worksheet);
+                        const reviewResult = reviewRecordsWithTotal(jsonData, excelText);
+                        if (reviewResult && reviewResult.reviewResults) {
+                            reviewResults.push(...reviewResult.reviewResults);
+                        }
+                    } else {
+                        // 回退到原来的审查方式
+                        jsonData.forEach(row => {
+                            const result = reviewRecord(row);
+                            reviewResults.push(result);
+                        });
+                    }
                 } catch (error) {
                     console.error('解析Excel/CSV文件出错:', error);
                     showNotification('解析Excel/CSV文件时出错: ' + error.message, 'error');
