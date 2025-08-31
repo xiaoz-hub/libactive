@@ -13,7 +13,24 @@ function initEventListeners() {
     } else {
         console.error('startReviewBtn 元素未找到');
     }
-    exportResultsBtn.addEventListener('click', exportResults);
+    // 导出下拉菜单事件监听器
+    if (exportDropdownBtn) {
+        exportDropdownBtn.addEventListener('click', () => {
+            const isHidden = exportDropdown.classList.contains('hidden');
+            if (isHidden) {
+                exportDropdown.classList.remove('hidden');
+            } else {
+                exportDropdown.classList.add('hidden');
+            }
+        });
+    }
+    
+    // 点击其他地方关闭下拉菜单
+    document.addEventListener('click', (e) => {
+        if (exportDropdown && !exportDropdownBtn.contains(e.target) && !exportDropdown.contains(e.target)) {
+            exportDropdown.classList.add('hidden');
+        }
+    });
     clearResultsBtn.addEventListener('click', clearReviewResults);
     helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
     closeHelpModal.addEventListener('click', () => helpModal.classList.add('hidden'));
@@ -85,10 +102,12 @@ function initEventListeners() {
     saveStudentIdRule.addEventListener('click', handleAddStudentIdRule);
     addDepartmentRule.addEventListener('click', handleAddDepartmentRule);
     document.getElementById('batchAddDepartmentRule').addEventListener('click', handleBatchAddDepartmentRule);
+    addCadreRule.addEventListener('click', handleAddCadreRule);
+    saveSimilaritySettings.addEventListener('click', handleSaveSimilaritySettings);
     activitySelect.addEventListener('change', handleActivitySelectChange);
     departmentSelect.addEventListener('change', handleDepartmentSelectChange);
     filterBtns.forEach(btn => btn.addEventListener('click', handleFilterChange));
-    document.querySelectorAll('.export-option-btn').forEach(btn => btn.addEventListener('click', handleExportOptionChange));
+    document.querySelectorAll('.export-dropdown-item').forEach(btn => btn.addEventListener('click', handleExportDropdownItemClick));
     helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.add('hidden'); });
     activityRuleModal.addEventListener('click', (e) => { if (e.target === activityRuleModal) activityRuleModal.classList.add('hidden'); });
     studentIdRuleModal.addEventListener('click', (e) => { if (e.target === studentIdRuleModal) studentIdRuleModal.classList.add('hidden'); });
@@ -174,9 +193,13 @@ window.startReview = function() {
     reviewStatus.classList.remove('hidden');
     resultFilter.classList.add('hidden');
     resultStats.classList.add('hidden');
-    document.getElementById('exportOptions').classList.add('hidden');
-    exportResultsBtn.disabled = true;
+    if (exportDropdown) exportDropdown.classList.add('hidden');
     clearResultsBtn.classList.add('hidden');
+    
+    // 初始化导出按钮样式
+    if (exportDropdownBtn) {
+        exportDropdownBtn.classList.add('no-data');
+    }
     progressBar.style.width = '0%';
     progressPercentage.textContent = '0%';
     let progress = 0;
@@ -194,7 +217,6 @@ window.startReview = function() {
                         showNotification('请按F12打开控制台查看详细的解析日志', 'info');
                     } else {
                         displayReviewResults();
-                        exportResultsBtn.disabled = false;
                         clearResultsBtn.classList.remove('hidden');
                         resultFilter.classList.remove('hidden');
                         resultStats.classList.remove('hidden');
@@ -225,6 +247,9 @@ function initApp() {
     updateQueryDepartmentSelect();
     studentIdRules = [];
     updateStudentIdRulesTable();
+    cadreRules = [];
+    updateCadreRulesTable();
+    initSimilaritySettings();
     
     console.log('initApp 执行完成');
     

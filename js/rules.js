@@ -22,9 +22,9 @@ function updateActivityRulesTable() {
             updateActivitySelect();
             
                 // 更新开始审查按钮状态 - 只要有文件就启用按钮
-    if (uploadedFiles.length > 0) {
-        startReviewBtn.disabled = false;
-    }
+            if (uploadedFiles.length > 0) {
+                startReviewBtn.disabled = false;
+            }
             
             showNotification('活动规则已删除', 'success');
         });
@@ -177,15 +177,9 @@ function updateStudentIdRulesTable() {
 
 function updateDepartmentRulesTable() {
     departmentRulesTable.innerHTML = '';
-    const headerRow = document.createElement('tr');
-    headerRow.className = 'bg-gray-50';
-    headerRow.innerHTML = `
-        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">部门名称</th>
-        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-    `;
-    departmentRulesTable.appendChild(headerRow);
     departmentRules.forEach((rule, index) => {
-        const row = document.createElement('tr'); row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        const row = document.createElement('tr'); 
+        row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
         row.innerHTML = `
             <td class="px-4 py-2 text-sm text-gray-700">${rule}</td>
             <td class="px-4 py-2 text-sm">
@@ -248,5 +242,171 @@ function handleDepartmentSelectChange() {
     const selectedDepartment = departmentSelect.value;
     if (!selectedDepartment) { departmentName.value = ''; return; }
     departmentName.value = selectedDepartment;
+}
+
+// 干部职位规则相关函数
+function handleAddCadreRule() {
+    const position = cadrePosition.value.trim();
+    if (!position) { 
+        showNotification('请输入干部职位', 'error'); 
+        return; 
+    }
+    
+    if (cadreRules.includes(position)) { 
+        showNotification('该干部职位已存在', 'error'); 
+        return; 
+    }
+    
+    cadreRules.push(position);
+    cadrePosition.value = '';
+    updateCadreRulesTable();
+    showNotification('干部职位规则已添加', 'success');
+}
+
+function updateCadreRulesTable() {
+    cadreRulesTable.innerHTML = '';
+    cadreRules.forEach((rule, index) => {
+        const row = document.createElement('tr');
+        row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        row.innerHTML = `
+            <td class="px-4 py-2 text-sm text-gray-700 text-center">${rule}</td>
+            <td class="px-4 py-2 text-sm text-center">
+                <button class="text-danger hover:text-red-700 transition-colors delete-cadre-rule" data-index="${index}">
+                    <i class="fa fa-trash"></i> 删除
+                </button>
+            </td>
+        `;
+        cadreRulesTable.appendChild(row);
+    });
+    
+    document.querySelectorAll('.delete-cadre-rule').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.closest('button').dataset.index);
+            cadreRules.splice(index, 1);
+            updateCadreRulesTable();
+            showNotification('干部职位规则已删除', 'success');
+        });
+    });
+}
+
+// 相似度匹配相关函数
+function handleSaveSimilaritySettings() {
+    const minFieldThresholdValue = parseInt(minFieldThreshold.value);
+    const maxFieldThresholdValue = parseInt(maxFieldThreshold.value);
+    
+    if (isNaN(minFieldThresholdValue) || minFieldThresholdValue < 1 || minFieldThresholdValue > 8) {
+        showNotification('请输入有效的最小字段匹配阈值（1-8）', 'error');
+        return;
+    }
+    
+    if (isNaN(maxFieldThresholdValue) || maxFieldThresholdValue < 1 || maxFieldThresholdValue > 10) {
+        showNotification('请输入有效的最大字段匹配阈值（1-10）', 'error');
+        return;
+    }
+    
+    if (minFieldThresholdValue > maxFieldThresholdValue) {
+        showNotification('最小字段匹配阈值不能大于最大字段匹配阈值', 'error');
+        return;
+    }
+    
+    similaritySettings.minFieldThreshold = minFieldThresholdValue;
+    similaritySettings.maxFieldThreshold = maxFieldThresholdValue;
+    
+    // 保存到本地存储
+    localStorage.setItem('similaritySettings', JSON.stringify(similaritySettings));
+    
+    showNotification('相似度匹配设置已保存', 'success');
+}
+
+// 计算活动名称相似度
+function calculateActivitySimilarity(activityName, ruleName) {
+    const normalizedActivity = normalizeActivityName(activityName);
+    const normalizedRule = normalizeActivityName(ruleName);
+    
+    console.log('相似度计算 - 原始活动名称:', activityName);
+    console.log('相似度计算 - 原始规则名称:', ruleName);
+    console.log('相似度计算 - 标准化活动名称:', normalizedActivity);
+    console.log('相似度计算 - 标准化规则名称:', normalizedRule);
+    
+    // 字段匹配：按空格、标点符号分割，计算匹配的字段数
+    // 对于中文活动名称，我们需要更智能的分割方式
+    const activityFields = normalizedActivity.split(/[\s，。、；：！？""''（）【】]/).filter(field => field.length > 0);
+    const ruleFields = normalizedRule.split(/[\s，。、；：！？""''（）【】]/).filter(field => field.length > 0);
+    
+    // 对于中文活动名称，还需要考虑按常见词汇分割
+    const chineseActivityFields = [];
+    const chineseRuleFields = [];
+    
+    // 添加原始字段
+    chineseActivityFields.push(...activityFields);
+    chineseRuleFields.push(...ruleFields);
+    
+    // 对活动名称进行更细粒度的分割
+    const activityWords = extractChineseWords(normalizedActivity);
+    const ruleWords = extractChineseWords(normalizedRule);
+    
+    chineseActivityFields.push(...activityWords);
+    chineseRuleFields.push(...ruleWords);
+    
+    // 去重
+    const uniqueActivityFields = [...new Set(chineseActivityFields)];
+    const uniqueRuleFields = [...new Set(chineseRuleFields)];
+    
+    console.log('相似度计算 - 活动字段:', uniqueActivityFields);
+    console.log('相似度计算 - 规则字段:', uniqueRuleFields);
+    
+    let fieldMatchCount = 0;
+    const matchedPairs = [];
+    
+    for (const activityField of uniqueActivityFields) {
+        for (const ruleField of uniqueRuleFields) {
+            // 完全匹配
+            if (activityField === ruleField) {
+                fieldMatchCount++;
+                matchedPairs.push(`${activityField} = ${ruleField}`);
+                console.log('完全匹配:', activityField, '=', ruleField);
+                break;
+            }
+            // 包含匹配
+            else if (activityField.includes(ruleField) || ruleField.includes(activityField)) {
+                fieldMatchCount++;
+                matchedPairs.push(`${activityField} 包含 ${ruleField}`);
+                console.log('包含匹配:', activityField, '包含', ruleField);
+                break;
+            }
+        }
+    }
+    
+    console.log('匹配的字段对:', matchedPairs);
+    
+    const result = {
+        fieldMatchCount: fieldMatchCount,
+        minFieldThreshold: similaritySettings.minFieldThreshold,
+        maxFieldThreshold: similaritySettings.maxFieldThreshold,
+        fieldPassed: fieldMatchCount >= similaritySettings.minFieldThreshold, // 只要达到最小阈值就通过
+        passed: fieldMatchCount >= similaritySettings.minFieldThreshold // 只要达到最小阈值就通过，不限制最大值
+    };
+    
+    console.log('相似度计算结果:', result);
+    return result;
+}
+
+// 初始化相似度设置
+function initSimilaritySettings() {
+    // 从本地存储加载设置
+    const savedSettings = localStorage.getItem('similaritySettings');
+    if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            similaritySettings.minFieldThreshold = settings.minFieldThreshold || 2;
+            similaritySettings.maxFieldThreshold = settings.maxFieldThreshold || 5;
+        } catch (e) {
+            console.error('加载相似度设置失败:', e);
+        }
+    }
+    
+    // 更新输入框的值
+    if (minFieldThreshold) minFieldThreshold.value = similaritySettings.minFieldThreshold;
+    if (maxFieldThreshold) maxFieldThreshold.value = similaritySettings.maxFieldThreshold;
 }
 

@@ -61,3 +61,52 @@ function normalizeActivityName(value) {
         .replace(/\s*-\s*/g, '-')
         .trim();
 }
+
+// 智能分割中文活动名称中的词汇
+function extractChineseWords(text) {
+    if (!text) return [];
+    
+    const words = [];
+    
+    // 常见活动相关词汇
+    const commonWords = [
+        '活动', '工作人员', '活动人员', '副部', '部长', '副部长', '干事', '成员', '负责人',
+        '草坪', '图书馆', '期刊', '人事', '知识', '竞赛', '运动会', '猜灯谜',
+        '寻宝', '大赛', '盛宴', '青春', '智慧', '闪耀', '飞扬', '迎新', '招新',
+        '嘉年华', '教育', '入馆', '新生'
+    ];
+    
+    // 查找包含的常见词汇
+    commonWords.forEach(word => {
+        if (text.includes(word)) {
+            words.push(word);
+        }
+    });
+    
+    // 按2-4个字符分割，提取可能的词汇
+    for (let i = 0; i < text.length - 1; i++) {
+        for (let len = 2; len <= 4 && i + len <= text.length; len++) {
+            const word = text.substring(i, i + len);
+            if (word.length >= 2) {
+                words.push(word);
+            }
+        }
+    }
+    
+    // 添加一些特殊的分割逻辑
+    // 处理"活动人员"、"工作人员"等组合词
+    if (text.includes('活动人员')) {
+        words.push('活动人员');
+    }
+    if (text.includes('工作人员')) {
+        words.push('工作人员');
+    }
+    if (text.includes('草坪活动')) {
+        words.push('草坪活动');
+    }
+    if (text.includes('猜灯谜活动')) {
+        words.push('猜灯谜活动');
+    }
+    
+    return words;
+}

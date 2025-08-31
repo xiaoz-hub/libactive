@@ -3,6 +3,26 @@ let currentPage = 1;
 let pageSize = 10;
 let totalPages = 1;
 
+// 确保 normalizeDepartment 函数可用
+function normalizeDepartment(value) {
+    if (!value) return value;
+    let v = String(value).replace(/\s+/g, '');
+    // 先移除明显的非组织词，若只剩这些则视为未填写
+    v = v.replace(/所在部门|单位|组织|学院|所属学院|所在学院|部门|：|:/g, '');
+    // 过滤职位/身份等：包含这些直接判定为空
+    if (/(干部|干事|职务|岗位|部长|副部长|秘书长|主任|副主任|主席|副主席|委员|成员)$/.test(v)) {
+        // 若是"图书馆学生干部"等，判定为未填写
+        return '';
+    }
+    // 避免把"干部"的"部"当作组织后缀
+    v = v.replace(/干部/g, '');
+    v = v.replace(/干事/g, '');
+    // 若含有空格/分隔符，优先截取组织名在前的部分
+    const m = v.match(/([\u4e00-\u9fa5·（）()\-/&]{2,30}?(?:部|学院|系|处|中心|科|组|办|队))/);
+    // 若找不到带组织后缀的词，则认定未填写
+    return m ? m[1] : '';
+}
+
 // 格式化问题描述，添加高亮颜色
 function formatIssues(issues) {
     if (!issues || issues === '通过') return issues;
@@ -103,7 +123,36 @@ window.updateResultsTable = function() {
             ? '<span class="inline-block px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded border border-green-200">通过</span>'
             : '<span class="inline-block px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded border border-red-200">未通过</span>';
         
-        const deptDisplay = (result.department && result.department !== '未知') ? result.department : '<span class="text-red-600">未填写部门</span>';
+        // 部门显示逻辑：根据不同状态使用不同的高亮显示
+        let deptDisplay = result.department;
+        if (!result.department || result.department === '未知') {
+            // 未填写部门：红色文字
+            deptDisplay = '<span class="text-red-600 font-semibold">未填写部门</span>';
+        } else if (departmentRules.length > 0) {
+            // 检查部门是否在规则列表中
+            const isDepartmentInRules = departmentRules.some(rule => {
+                const normalizedRule = normalizeDepartment(rule);
+                const normalizedDept = normalizeDepartment(result.department);
+                return normalizedDept.includes(normalizedRule) || normalizedRule.includes(normalizedDept);
+            });
+            
+            if (!isDepartmentInRules) {
+                // 部门未在规则中定义：红色渐变背景（未通过状态）
+                deptDisplay = `<span class="dept-failed">${result.department}</span>`;
+            } else {
+                // 部门在规则中定义：根据审查结果使用不同颜色
+                if (result.passed) {
+                    // 审核通过：绿色渐变背景
+                    deptDisplay = `<span class="dept-passed">${result.department}</span>`;
+                } else {
+                    // 审核未通过：橙色渐变背景
+                    deptDisplay = `<span class="dept-warning">${result.department}</span>`;
+                }
+            }
+        } else {
+            // 没有定义部门规则：蓝色渐变背景
+            deptDisplay = `<span class="dept-info">${result.department}</span>`;
+        }
         const sequenceNumber = startIndex + index + 1;
         
         // 格式化问题描述，添加高亮颜色
@@ -132,6 +181,9 @@ window.updateResultsTable = function() {
     totalRecords.textContent = filteredResults.length;
     passedRecords.textContent = passedCount;
     failedRecords.textContent = failedCount;
+    
+    // 显示部门状态图例
+    showDepartmentLegend();
 }
 
 function updatePagination(totalRecords) {
@@ -185,7 +237,6 @@ window.displayReviewResults = function() {
     currentPage = 1;
     
     updateResultsTable();
-    document.getElementById('exportOptions').classList.remove('hidden');
     if (reviewResults.length === 0) {
         resultsTable.innerHTML = `
             <tr class="text-center">
@@ -195,6 +246,18 @@ window.displayReviewResults = function() {
             </td>
         `;
         document.getElementById('paginationContainer').classList.add('hidden');
+        
+        // 隐藏部门图例
+        const legendContainer = document.getElementById('departmentLegend');
+        if (legendContainer) {
+            legendContainer.style.display = 'none';
+        }
+    } else {
+        // 显示部门图例
+        const legendContainer = document.getElementById('departmentLegend');
+        if (legendContainer) {
+            legendContainer.style.display = 'block';
+        }
     }
 }
 
@@ -262,17 +325,22 @@ function handleFilterChange(e) {
     // 重置分页状态
     currentPage = 1;
     updateResultsTable();
-    filterBtns.forEach(btn => { btn.classList.remove('bg-primary', 'text-white'); btn.classList.add('bg-gray-200', 'text-gray-700'); });
+    filterBtns.forEach(btn => { btn.classList.remove('bg-primary', 'text-white'); btn.classList.add('bg-orange-100', 'text-orange-700'); });
     e.target.classList.add('bg-primary', 'text-white');
-    e.target.classList.remove('bg-gray-200', 'text-gray-700');
+    e.target.classList.remove('bg-orange-100', 'text-orange-700');
 }
 
-function handleExportOptionChange(e) {
+function handleExportDropdownItemClick(e) {
     const exportFilter = e.target.dataset.exportFilter;
     currentExportFilter = exportFilter;
-    document.querySelectorAll('.export-option-btn').forEach(btn => { btn.classList.remove('bg-white', 'text-gray-700', 'shadow-sm'); btn.classList.add('bg-gray-100', 'text-gray-500'); });
-    e.target.classList.add('bg-white', 'text-gray-700', 'shadow-sm');
-    e.target.classList.remove('bg-gray-100', 'text-gray-500');
+    
+    // 关闭下拉菜单
+    if (exportDropdown) {
+        exportDropdown.classList.add('hidden');
+    }
+    
+    // 执行导出
+    exportReviewResults(currentExportFilter);
 }
 
 function toggleTheme() {
@@ -281,5 +349,71 @@ function toggleTheme() {
     const icon = themeToggle.querySelector('i');
     if (icon.classList.contains('fa-moon-o')) { icon.classList.remove('fa-moon-o'); icon.classList.add('fa-sun-o'); }
     else { icon.classList.remove('fa-sun-o'); icon.classList.add('fa-moon-o'); }
+}
+
+// 显示部门状态图例
+function showDepartmentLegend() {
+    // 检查是否已经存在图例
+    let legendContainer = document.getElementById('departmentLegend');
+    if (!legendContainer) {
+        legendContainer = document.createElement('div');
+        legendContainer.id = 'departmentLegend';
+        legendContainer.className = 'mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200';
+        
+        // 插入到结果表格之前
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (resultsContainer && resultsContainer.parentNode) {
+            resultsContainer.parentNode.insertBefore(legendContainer, resultsContainer);
+        }
+    }
+    
+    // 更新图例内容
+    legendContainer.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-semibold text-gray-700 flex items-center">
+                <i class="fa fa-info-circle text-blue-600 mr-2"></i>部门状态说明
+            </h4>
+            <button onclick="toggleLegend()" class="text-gray-500 hover:text-gray-700 text-sm">
+                <i class="fa fa-chevron-up"></i>
+            </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="flex items-center">
+                <span class="dept-passed mr-2">示例</span>
+                <span class="text-gray-600">审核通过</span>
+            </div>
+            <div class="flex items-center">
+                <span class="dept-warning mr-2">示例</span>
+                <span class="text-gray-600">审核未通过</span>
+            </div>
+            <div class="flex items-center">
+                <span class="dept-failed mr-2">示例</span>
+                <span class="text-gray-600">部门未定义</span>
+            </div>
+            <div class="flex items-center">
+                <span class="dept-info mr-2">示例</span>
+                <span class="text-gray-600">无部门规则</span>
+            </div>
+        </div>
+    `;
+}
+
+// 切换图例显示/隐藏
+function toggleLegend() {
+    const legendContainer = document.getElementById('departmentLegend');
+    if (legendContainer) {
+        const content = legendContainer.querySelector('.grid');
+        const icon = legendContainer.querySelector('.fa-chevron-up, .fa-chevron-down');
+        
+        if (content.style.display === 'none') {
+            content.style.display = 'grid';
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        } else {
+            content.style.display = 'none';
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        }
+    }
 }
 

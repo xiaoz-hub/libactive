@@ -101,47 +101,90 @@
         .elevated-card { box-shadow: 0 6px 20px rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.05); }
         /* Tables */
         .table-sticky thead th { position: sticky; top: 0; z-index: 1; }
-        .table-zebra tbody tr:nth-child(odd) { background-color: #fafbff; }
+        .table-zebra tbody tr:nth-child(odd) { background-color: #f8f9fa; }
         .table-compact td, .table-compact th { padding: 0.5rem 0.75rem !important; }
         .table-compact tbody tr { height: 2.5rem; }
-        .table-compact .bg-gray-50 { background-color: #f9fafb !important; }
+        .table-compact .bg-gray-50 { background-color: #f0f4ff !important; }
         .table-compact thead th { 
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
-            font-weight: 600;
-            color: #475569;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e3f2fd 100%) !important;
+            font-weight: normal;
+            color: #1976d2;
         }
         
         /* 表格内容居中对齐 */
         .table-compact tbody td { text-align: center !important; }
         .table-compact tbody td:last-child { text-align: center !important; }
         
-        /* 按钮美化 */
+        /* 按钮美化 - 柔和轻量风格 */
         .btn-primary { 
-            background: linear-gradient(135deg, #165DFF 0%, #0d47a1 100%);
-            box-shadow: 0 2px 4px rgba(22, 93, 255, 0.2);
+            background-color: #f0f8ff;
+            border: 1px solid #e6f3ff;
+            color: #165DFF;
+            box-shadow: none;
+            transition: all 0.2s ease;
         }
         .btn-primary:hover { 
-            background: linear-gradient(135deg, #0d47a1 0%, #165DFF 100%);
-            box-shadow: 0 4px 8px rgba(22, 93, 255, 0.3);
-            transform: translateY(-1px);
+            background-color: #e6f3ff;
+            border-color: #165DFF;
+            color: #165DFF;
+            box-shadow: none;
+            transform: none;
         }
         .btn-success { 
-            background: linear-gradient(135deg, #52C41A 0%, #388e3c 100%);
-            box-shadow: 0 2px 4px rgba(82, 196, 26, 0.2);
+            background-color: #f0fff4;
+            border: 1px solid #e6ffed;
+            color: #52C41A;
+            box-shadow: none;
+            transition: all 0.2s ease;
         }
         .btn-success:hover { 
-            background: linear-gradient(135deg, #388e3c 0%, #52C41A 100%);
-            box-shadow: 0 4px 8px rgba(82, 196, 26, 0.3);
-            transform: translateY(-1px);
+            background-color: #e6ffed;
+            border-color: #52C41A;
+            color: #52C41A;
+            box-shadow: none;
+            transform: none;
+        }
+        
+        /* 导出按钮无数据时的样式 */
+        .btn-success.no-data {
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            color: #999;
+            cursor: pointer;
+        }
+        .btn-success.no-data:hover {
+            background-color: #f0f0f0;
+            border-color: #ccc;
+            color: #666;
         }
         .btn-info { 
-            background: linear-gradient(135deg, #1890FF 0%, #1565c0 100%);
-            box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+            background-color: #f0f8ff;
+            border: 1px solid #e6f3ff;
+            color: #1890FF;
+            box-shadow: none;
+            transition: all 0.2s ease;
         }
-        .btn-info:hover { 
-            background: linear-gradient(135deg, #1565c0 0%, #1890FF 100%);
-            box-shadow: 0 4px 8px rgba(24, 144, 255, 0.3);
-            transform: translateY(-1px);
+        .btn-info:hover {
+            background-color: #e6f3ff;
+            border-color: #1890FF;
+            color: #1890FF;
+            box-shadow: none;
+            transform: none;
+        }
+        
+        .btn-purple { 
+            background-color: #f8f0ff;
+            border: 1px solid #f0e6ff;
+            color: #8B5CF6;
+            box-shadow: none;
+            transition: all 0.2s ease;
+        }
+        .btn-purple:hover { 
+            background-color: #f0e6ff;
+            border-color: #8B5CF6;
+            color: #8B5CF6;
+            box-shadow: none;
+            transform: none;
         }
         
         /* 卡片美化 */
@@ -161,34 +204,131 @@
             box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.1);
         }
         
-        /* 删除按钮美化 */
+        /* 删除按钮美化 - 柔和轻量风格 */
         .btn-delete {
-            background: linear-gradient(135deg, #F5222D 0%, #d32f2f 100%);
-            box-shadow: 0 2px 4px rgba(245, 34, 45, 0.2);
+            background-color: #fff5f5;
+            border: 1px solid #ffe6e6;
+            color: #F5222D;
+            box-shadow: none;
             transition: all 0.2s ease;
         }
         .btn-delete:hover {
-            background: linear-gradient(135deg, #d32f2f 0%, #F5222D 100%);
-            box-shadow: 0 4px 8px rgba(245, 34, 45, 0.3);
-            transform: translateY(-1px);
+            background-color: #ffe6e6;
+            border-color: #F5222D;
+            color: #F5222D;
+            box-shadow: none;
+            transform: none;
         }
         
         /* 分页控件样式 */
         .pagination-btn {
             transition: all 0.2s ease;
+            background-color: #f8f9fa;
+            border-color: #e9ecef;
+            color: #6c757d;
         }
         .pagination-btn:hover:not(:disabled) {
-            background-color: #f3f4f6;
-            border-color: #d1d5db;
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: #495057;
         }
         .pagination-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
+        }
+        
+        /* 下拉菜单样式 - 二级菜单风格 */
+        .export-dropdown-item {
+            transition: all 0.2s ease;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            font-size: 14px;
+            text-align: left;
+            width: 100%;
+            border-radius: 0;
+        }
+        .export-dropdown-item:hover {
+            background-color: #e3f2fd !important;
+            color: #1976d2 !important;
+            transform: none;
+        }
+        .export-dropdown-item:active {
+            background-color: #e3f2fd !important;
+        }
+        
+        /* 下拉菜单容器样式 */
+        #exportDropdown {
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 4px 0;
+            min-width: 160px;
+            transform-origin: top right;
+            transition: all 0.2s ease;
+        }
+        #exportDropdown.hidden {
+            opacity: 0;
+            transform: scale(0.95) translateY(-8px);
+            pointer-events: none;
+        }
+        #exportDropdown:not(.hidden) {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        
+        .pagination-btn:disabled {
             cursor: not-allowed;
+            background-color: #f8f9fa;
+            border-color: #e9ecef;
+            color: #adb5bd;
         }
         .pagination-btn.active {
-            background-color: #165DFF;
-            color: white;
-            border-color: #165DFF;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-color: #bbdefb;
+        }
+        
+        /* 部门状态高亮样式 */
+        .dept-passed {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            color: #0369a1;
+            font-weight: normal;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #bae6fd;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .dept-failed {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #dc2626;
+            font-weight: normal;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #fecaca;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .dept-warning {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            color: #d97706;
+            font-weight: normal;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #fed7aa;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .dept-info {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            color: #0369a1;
+            font-weight: normal;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #bae6fd;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
     </style>
 </head>
@@ -224,7 +364,7 @@
                     <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-600 mb-2">拖放文件到此处，或点击选择文件</p>
                     <p class="text-sm text-gray-400">支持Excel、CSV和Word格式，可批量上传</p>
-                    <button id="browseBtn" class="mt-3 btn-primary text-white px-8 py-2 rounded-md transition-all duration-200 text-sm">
+                    <button id="browseBtn" class="mt-3 btn-primary px-8 py-2 rounded-md transition-all duration-200 text-sm">
                         选择文件
                     </button>
                 </div>
@@ -253,21 +393,75 @@
                 
                 <!-- 规则内容容器（与选项卡联动） -->
                 <div class="rule-content" id="activity-content">
-                    <div id="activityRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                    <div id="activityRules" class="bg-white p-4 rounded-lg elevated-card">
                         <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
                             <i class="fa fa-star text-primary mr-2 text-xs"></i>活动名称与分数
                         </h3>
-                        <div class="grid grid-cols-3 gap-2 mb-2">
+                                                <div class="grid grid-cols-3 gap-2 mb-2">
                             <select id="activitySelect" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
                                 <option value="">请选择活动</option>
                             </select>
                             <input type="text" id="activityName" placeholder="活动名称" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
                             <input type="number" id="activityScore" placeholder="分数" class="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
                         </div>
-                                                <div class="flex justify-center mb-3">
-                            <button id="addActivityRule" class="btn-success text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
-                                <i class="fa fa-plus mr-1"></i>添加规则
-                            </button>
+                        <div class="flex justify-center mb-3">
+                                                    <button id="addActivityRule" class="btn-success px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                            <i class="fa fa-plus mr-1"></i>添加规则
+                        </button>
+                        </div>
+                        
+                        <!-- 干部规则设置 -->
+                        <div class="border-t pt-3 mt-3">
+                            <h4 class="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa fa-user text-purple-600 mr-1"></i>干部职位规则
+                            </h4>
+                            <p class="text-xs text-gray-500 mb-2">设置干部职位关键词，活动名称包含这些关键词则通过，否则不通过</p>
+                            <div class="flex gap-2 mb-2">
+                                <input type="text" id="cadrePosition" placeholder="例如：秘书长、部长、主席" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                                        <button id="addCadreRule" class="btn-purple px-4 py-1.5 rounded-md transition-all duration-200 text-sm">
+                            <i class="fa fa-plus mr-1"></i>添加
+                        </button>
+                            </div>
+                            
+                            <!-- 干部规则列表 -->
+                            <div class="mt-3 overflow-x-auto max-h-24">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
+                                                                    <thead>
+                                    <tr>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">干部职位</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                    <tbody id="cadreRulesTable" class="bg-white divide-y divide-gray-200">
+                                        <!-- 干部规则会动态添加到这里 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 相似度匹配设置 -->
+                        <div class="border-t pt-3 mt-3">
+                            <h4 class="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa fa-percentage text-green-600 mr-1"></i>相似度匹配设置
+                            </h4>
+                            <p class="text-xs text-gray-500 mb-2">设置活动名称相似度匹配阈值，超过阈值则自动匹配通过</p>
+                            <div class="grid grid-cols-2 gap-4 mb-2">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">最小字段匹配</label>
+                                    <input type="number" id="minFieldThreshold" placeholder="例如：2" min="1" max="8" class="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                    <p class="text-xs text-gray-400 mt-1">至少需要匹配的字段数量</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">最大字段匹配</label>
+                                    <input type="number" id="maxFieldThreshold" placeholder="例如：5" min="1" max="10" class="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
+                                    <p class="text-xs text-gray-400 mt-1">最多允许匹配的字段数量</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-center">
+                                                        <button id="saveSimilaritySettings" class="btn-success px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                            <i class="fa fa-save mr-1"></i>保存设置
+                        </button>
+                            </div>
                         </div>
                         
                         <!-- 批量添加功能 -->
@@ -277,7 +471,7 @@
                             </h4>
                             <textarea id="batchActivityInput" placeholder="格式：活动名称,分数" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm h-24 resize-none"></textarea>
                             <div class="flex justify-center mt-2">
-                                <button id="batchAddActivityRule" class="btn-info text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
+                                <button id="batchAddActivityRule" class="btn-info px-6 py-1.5 rounded-md transition-all duration-200 text-sm">
                                     <i class="fa fa-list mr-1"></i>批量添加
                                 </button>
                             </div>
@@ -285,11 +479,11 @@
                         
                         <div class="mt-3 overflow-x-auto max-h-36">
                             <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
-                                <thead>
+                                                                <thead>
                                     <tr>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">活动名称</th>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">标准分数</th>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">活动名称</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">标准分数</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="activityRulesTable" class="bg-white divide-y divide-gray-200">
@@ -301,7 +495,7 @@
                 </div>
                 
                 <div class="rule-content hidden" id="student-content">
-                    <div id="studentRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                    <div id="studentRules" class="bg-white p-4 rounded-lg elevated-card">
                         <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
                             <i class="fa fa-id-card text-primary mr-2 text-xs"></i>学号审核
                         </h3>
@@ -314,7 +508,7 @@
                                 </select>
                                 <div class="flex gap-2">
                                     <input type="text" id="studentIdPattern" placeholder="例如：23xxx（开头规则）或 10（位数规则）" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm">
-                                    <button id="saveStudentIdRule" class="btn-success text-white px-6 py-1.5 rounded-md transition-all duration-200 text-sm whitespace-nowrap">
+                                    <button id="saveStudentIdRule" class="btn-success px-6 py-1.5 rounded-md transition-all duration-200 text-sm whitespace-nowrap">
                                         <i class="fa fa-plus mr-1"></i>添加规则
                                     </button>
                                 </div>
@@ -325,11 +519,11 @@
                         <!-- 学号规则列表 -->
                         <div class="mt-3 overflow-x-auto max-h-36">
                             <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
-                                <thead>
+                                                                <thead>
                                     <tr>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">规则类型</th>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">规则值</th>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">规则类型</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">规则值</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="studentIdRulesTable" class="bg-white divide-y divide-gray-200">
@@ -341,7 +535,7 @@
                 </div>
                 
                 <div class="rule-content hidden" id="department-content">
-                    <div id="departmentRules" class="bg-gray-50 p-4 rounded-lg elevated-card">
+                    <div id="departmentRules" class="bg-white p-4 rounded-lg elevated-card">
                         <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center">
                             <i class="fa fa-building text-primary mr-2 text-xs"></i>部门规则
                         </h3>
@@ -356,7 +550,7 @@
                                 </button>
                             </div>
                             <!-- 批量添加部门规则 -->
-                            <div class="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                 <div class="flex items-center mb-2">
                                     <i class="fa fa-layer-group text-blue-600 mr-2 text-xs"></i>
                                     <span class="text-sm font-medium text-blue-800">批量添加部门规则</span>
@@ -371,10 +565,10 @@
                         </div>
                         <div class="mt-3 overflow-x-auto max-h-36">
                             <table class="min-w-full divide-y divide-gray-200 text-sm table-sticky table-zebra table-compact">
-                                <thead>
+                                                                <thead>
                                     <tr>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">部门名称</th>
-                                        <th class="bg-gray-100 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">部门名称</th>
+                                        <th class="bg-gray-50 text-center text-xs font-normal text-gray-600 uppercase tracking-wider">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="departmentRulesTable" class="bg-white divide-y divide-gray-200">
@@ -402,23 +596,24 @@
                             <button id="clearResultsBtn" class="bg-danger text-white px-4 py-2 rounded-md hover:bg-danger/90 transition-colors flex items-center text-sm hidden">
                                 <i class="fa fa-trash mr-1"></i>清空结果
                             </button>
-                            <!-- 导出选项选项卡 -->
-                            <div id="exportOptions" class="hidden">
-                                <div class="flex bg-gray-100 rounded-md p-1">
-                                    <button class="export-option-btn bg-white text-gray-700 px-3 py-1 rounded-md text-sm shadow-sm transition-colors" data-export-filter="all">
-                                        全部
+                            <!-- 导出下拉菜单 -->
+                            <div class="relative">
+                                <button id="exportDropdownBtn" class="btn-success px-6 py-2 rounded-md transition-all duration-200 flex items-center text-sm">
+                                    <i class="fa fa-download mr-1"></i>导出结果
+                                    <i class="fa fa-chevron-down ml-2 text-xs"></i>
+                                </button>
+                                <div id="exportDropdown" class="absolute right-0 mt-2 z-50 hidden">
+                                    <button class="export-dropdown-item" data-export-filter="all">
+                                        <i class="fa fa-download mr-2"></i>全部数据下载
                                     </button>
-                                    <button class="export-option-btn bg-gray-100 text-gray-500 px-3 py-1 rounded-md text-sm transition-colors" data-export-filter="passed">
-                                        通过
+                                    <button class="export-dropdown-item" data-export-filter="passed">
+                                        <i class="fa fa-check-circle mr-2 text-green-600"></i>通过数据下载
                                     </button>
-                                    <button class="export-option-btn bg-gray-100 text-gray-500 px-3 py-1 rounded-md text-sm transition-colors" data-export-filter="failed">
-                                        不通过
+                                    <button class="export-dropdown-item" data-export-filter="failed">
+                                        <i class="fa fa-times-circle mr-2 text-red-600"></i>未通过数据下载
                                     </button>
                                 </div>
                             </div>
-                            <button id="exportResultsBtn" class="btn-success text-white px-6 py-2 rounded-md transition-all duration-200 flex items-center text-sm" disabled>
-                                <i class="fa fa-download mr-1"></i>导出结果
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -437,7 +632,7 @@
                     </div>
                     <div class="flex items-end space-x-2">
                         <button id="applyQueryBtn" class="btn-primary text-white px-6 py-2 rounded-md transition-all duration-200 text-sm"><i class="fa fa-filter mr-1"></i>应用查询</button>
-                        <button id="resetQueryBtn" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 transition-colors text-sm"><i class="fa fa-undo mr-1"></i>重置</button>
+                        <button id="resetQueryBtn" class="bg-blue-100 text-blue-700 px-6 py-2 rounded-md hover:bg-blue-200 transition-colors text-sm"><i class="fa fa-undo mr-1"></i>重置</button>
                     </div>
                 </div>
                 
@@ -447,7 +642,7 @@
                         <p class="text-gray-600"><i class="fa fa-spinner fa-spin mr-2"></i>审查进行中...</p>
                         <span id="progressPercentage" class="text-primary font-medium">0%</span>
                     </div>
-                    <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div class="mt-2 w-full bg-blue-100 rounded-full h-2">
                         <div id="progressBar" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
                     </div>
                 </div>
@@ -457,24 +652,24 @@
                     <div class="flex flex-wrap gap-2 items-center">
                         <label class="text-gray-700 whitespace-nowrap text-sm">筛选：</label>
                         <button class="filter-btn bg-primary text-white px-4 py-1.5 rounded-md text-sm" data-filter="all">全部</button>
-                        <button class="filter-btn bg-gray-200 text-gray-700 px-4 py-1.5 rounded-md text-sm hover:bg-gray-300" data-filter="passed">通过</button>
-                        <button class="filter-btn bg-gray-200 text-gray-700 px-4 py-1.5 rounded-md text-sm hover:bg-gray-300" data-filter="failed">未通过</button>
+                        <button class="filter-btn bg-orange-100 text-orange-700 px-4 py-1.5 rounded-md text-sm hover:bg-orange-200" data-filter="passed">通过</button>
+                        <button class="filter-btn bg-orange-100 text-orange-700 px-4 py-1.5 rounded-md text-sm hover:bg-orange-200" data-filter="failed">未通过</button>
                     </div>
                 </div>
                 
                 <!-- 结果统计 -->
                 <div id="resultStats" class="mb-3 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
-                    <div class="bg-blue-50 p-3 rounded-md">
-                        <p class="text-sm text-blue-600">总记录数</p>
-                        <p id="totalRecords" class="text-xl font-bold text-blue-800">0</p>
+                    <div class="bg-white p-3 rounded-md border border-gray-200">
+                        <p class="text-sm text-gray-600">总记录数</p>
+                        <p id="totalRecords" class="text-xl font-bold text-gray-800">0</p>
                     </div>
-                    <div class="bg-green-50 p-3 rounded-md">
-                        <p class="text-sm text-green-600">通过数</p>
-                        <p id="passedRecords" class="text-xl font-bold text-green-800">0</p>
+                    <div class="bg-white p-3 rounded-md border border-gray-200">
+                        <p class="text-sm text-gray-600">通过数</p>
+                        <p id="passedRecords" class="text-xl font-bold text-green-600">0</p>
                     </div>
-                    <div class="bg-red-50 p-3 rounded-md">
-                        <p class="text-sm text-red-600">未通过数</p>
-                        <p id="failedRecords" class="text-xl font-bold text-red-800">0</p>
+                    <div class="bg-white p-3 rounded-md border border-gray-200">
+                        <p class="text-sm text-gray-600">未通过数</p>
+                        <p id="failedRecords" class="text-xl font-bold text-red-600">0</p>
                     </div>
                 </div>
                 
@@ -483,14 +678,14 @@
                     <table class="min-w-full divide-y divide-gray-200 table-compact">
                         <thead>
                             <tr>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">学号</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">部门</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">活动名称</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">申请分数</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">审查结果</th>
-                                <th class="bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-48">问题描述</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">序号</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">姓名</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">学号</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">部门</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">活动名称</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">申请分数</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">审查结果</th>
+                                <th class="bg-blue-50 text-center text-xs font-medium text-blue-600 uppercase tracking-wider w-48">问题描述</th>
                             </tr>
                         </thead>
                         <tbody id="resultsTable" class="bg-white divide-y divide-gray-200">
@@ -545,12 +740,12 @@
     </main>
 
     <!-- 全屏拖拽上传提示覆盖层 -->
-    <div id="dragOverlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-40 hidden">
+    <div id="dragOverlay" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-40 hidden">
         <div class="w-full h-full flex flex-col items-center justify-center select-none">
-            <div class="border-4 border-dashed border-gray-300 rounded-3xl p-20 max-w-6xl w-11/12 text-center bg-white/80 shadow-2xl">
-                <i class="fa fa-cloud-upload text-6xl text-gray-400 mb-5"></i>
-                <h3 class="text-4xl font-semibold text-gray-700 mb-3 tracking-wide">文件拖动到此处即可上传</h3>
-                <p class="text-gray-500 text-xl">支持 Excel、CSV、Word 文档等</p>
+            <div class="border-4 border-dashed border-blue-400 rounded-3xl p-20 max-w-6xl w-11/12 text-center bg-white shadow-2xl">
+                <i class="fa fa-cloud-upload text-6xl text-blue-500 mb-5"></i>
+                <h3 class="text-4xl font-semibold text-gray-800 mb-3 tracking-wide">文件拖动到此处即可上传</h3>
+                <p class="text-gray-600 text-xl">支持 Excel、CSV、Word 文档等</p>
             </div>
         </div>
     </div>

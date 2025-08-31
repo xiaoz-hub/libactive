@@ -3,6 +3,11 @@ let uploadedFiles = [];
 let activityRules = [];
 let departmentRules = [];
 let studentIdRules = [];
+let cadreRules = []; // 干部职位规则
+let similaritySettings = {
+    minFieldThreshold: 2,  // 最小字段匹配阈值
+    maxFieldThreshold: 5   // 最大字段匹配阈值
+};
 let reviewResults = [];
 let currentFilter = 'all';
 let currentExportFilter = 'all';
@@ -14,7 +19,8 @@ const browseBtn = document.getElementById('browseBtn');
 const uploadedFilesDiv = document.getElementById('uploadedFiles');
 const fileList = document.getElementById('fileList');
 const startReviewBtn = document.getElementById('startReviewBtn');
-const exportResultsBtn = document.getElementById('exportResultsBtn');
+const exportDropdownBtn = document.getElementById('exportDropdownBtn');
+const exportDropdown = document.getElementById('exportDropdown');
 const clearResultsBtn = document.getElementById('clearResultsBtn');
 const reviewStatus = document.getElementById('reviewStatus');
 const progressBar = document.getElementById('progressBar');
@@ -55,6 +61,12 @@ const departmentSelect = document.getElementById('departmentSelect');
 const departmentName = document.getElementById('departmentName');
 const addDepartmentRule = document.getElementById('addDepartmentRule');
 const departmentRulesTable = document.getElementById('departmentRulesTable');
+const cadrePosition = document.getElementById('cadrePosition');
+const addCadreRule = document.getElementById('addCadreRule');
+const cadreRulesTable = document.getElementById('cadreRulesTable');
+const minFieldThreshold = document.getElementById('minFieldThreshold');
+const maxFieldThreshold = document.getElementById('maxFieldThreshold');
+const saveSimilaritySettings = document.getElementById('saveSimilaritySettings');
 const filterBtns = document.querySelectorAll('.filter-btn');
 
 // 查询相关元素

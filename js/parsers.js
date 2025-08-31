@@ -48,13 +48,19 @@ function parseWordTextToRecords(text) {
             if (inActivitySection) { 
                 activityLines.push(line); 
                 // 检查是否到达活动区域结束
-                if (line.includes('合计') || line.includes('总分') || line.includes('总计')) { 
+                if (line.includes('总分') || line.includes('总计')) { 
                     inActivitySection = false; 
                     console.log('活动区域结束，处理活动行数:', activityLines.length);
                     parseActivityLines(activityLines, currentRecord, records); 
                     activityLines = []; 
                     currentRecord = {}; 
                 } 
+                
+                // 跳过合计行，因为合计只是总分的计算，不需要提取
+                if (line.includes('合计')) {
+                    console.log('跳过合计行（不需要提取）:', line);
+                    return;
+                }
                 return; // 在活动区域内不进行即时提取
             }
             
@@ -63,7 +69,16 @@ function parseWordTextToRecords(text) {
                 currentRecord['姓名'] = extractField(line, ['姓名', '学生姓名', '姓\\s*名']);
             }
             if ((line.includes('学号') || line.includes('编号')) && !currentRecord['学号']) {
-                currentRecord['学号'] = extractField(line, ['学号', '编号'], /\d+/);
+                const extractedStudentId = extractField(line, ['学号', '编号'], /\d+/);
+                if (extractedStudentId) {
+                    currentRecord['学号'] = extractedStudentId;
+                } else {
+                    // 如果标准提取失败，尝试更宽松的匹配
+                    const studentIdMatch = line.match(/学号[^\d]*(\d{6,20})/);
+                    if (studentIdMatch && studentIdMatch[1]) {
+                        currentRecord['学号'] = studentIdMatch[1];
+                    }
+                }
             }
             if ((line.includes('所在部门') || line.includes('部门') || line.includes('学院') || line.includes('系别') || line.includes('单位') || line.includes('组织') || line.includes('所属学院') || line.includes('所在学院')) && !currentRecord['所在部门']) {
                 currentRecord['所在部门'] = normalizeDepartment(extractField(line, ['所在部门', '部门', '学院', '系别', '单位', '组织', '所属学院', '所在学院']));
@@ -117,13 +132,29 @@ function parseWordTextToRecords(text) {
             });
         }
         
-        console.log('最终提取结果，总数量:', records.length);
+        // 去重处理：移除重复的活动记录
+        const uniqueRecords = [];
+        const seenActivities = new Set();
+        
+        records.forEach(record => {
+            const key = `${record['姓名']}-${record['所参加的活动及担任角色']}-${record['加分']}`;
+            if (!seenActivities.has(key)) {
+                seenActivities.add(key);
+                uniqueRecords.push(record);
+            } else {
+                console.log('移除重复记录:', record);
+            }
+        });
+        
+        console.log('去重前记录数量:', records.length);
+        console.log('去重后记录数量:', uniqueRecords.length);
+        console.log('最终提取结果，总数量:', uniqueRecords.length);
         
     } catch (error) {
         console.error('解析Word文本出错:', error);
         showNotification('解析Word文档时出错: ' + error.message, 'error');
     }
-    return records;
+    return uniqueRecords;
 }
 
 function extractField(line, keywords, pattern = null) {
@@ -139,7 +170,20 @@ function extractField(line, keywords, pattern = null) {
             const keywordSet = new Set(keywords);
             if (keywordSet.has(value)) { value = match[1]; }
             value = (value || '').trim();
-            if (pattern) { const patternMatch = value.match(pattern); if (patternMatch) value = patternMatch[0]; }
+            if (pattern) { 
+                const patternMatch = value.match(pattern); 
+                if (patternMatch) {
+                    value = patternMatch[0];
+                    // 对于学号，确保提取的是完整的学号
+                    if (keywords.some(k => k.includes('学号'))) {
+                        // 如果学号被截断了，尝试提取更长的学号
+                        const longerMatch = value.match(/\d{6,20}/);
+                        if (longerMatch) {
+                            value = longerMatch[0];
+                        }
+                    }
+                }
+            }
             // 如果是姓名字段，优先截取第一个2-4位中文，避免串入其他字段
             if ([...keywordSet].some(k => /姓名|学生姓名|姓\s*名/.test(k))) {
                 const shortName = value.match(/[\u4e00-\u9fa5·]{2,4}/);
@@ -162,6 +206,12 @@ function tryExtractActivityFromLine(line, currentRecord, records) {
     
     // 跳过明显的活动区域标记行
     if (line.includes('所参加的活动') || line.includes('活动列表') || line.includes('活动记录')) {
+        return;
+    }
+    
+    // 跳过合计行，因为合计只是总分的计算，不需要提取
+    if (line.includes('合计') || line.includes('总计') || line.includes('总分')) {
+        console.log('跳过合计行（不需要提取）:', line);
         return;
     }
     
@@ -224,6 +274,7 @@ function tryExtractActivityFromLine(line, currentRecord, records) {
         const isTooShort = activityName.length < 2;
         const isOnlyNumbers = /^\d+$/.test(activityName);
         const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+        const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
         
         // 检查是否已经存在相同的活动记录
         const existingRecord = records.find(r => 
@@ -232,7 +283,7 @@ function tryExtractActivityFromLine(line, currentRecord, records) {
             r['姓名'] === currentRecord['姓名']
         );
         
-        if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !existingRecord) {
+        if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isTotalRow && !existingRecord) {
             const activityRecord = Object.assign({}, currentRecord);
             activityRecord['所参加的活动及担任角色'] = activityName;
             activityRecord['加分'] = score;
@@ -261,10 +312,26 @@ function extractAllPossibleRecords(lines) {
             return;
         }
         if (line.includes('姓名') && !currentPerson['姓名']) currentPerson['姓名'] = extractField(line, ['姓名']);
-        if (line.includes('学号') && !currentPerson['学号']) currentPerson['学号'] = extractField(line, ['学号'], /\d+/);
+        if (line.includes('学号') && !currentPerson['学号']) {
+            const extractedStudentId = extractField(line, ['学号'], /\d+/);
+            if (extractedStudentId) {
+                currentPerson['学号'] = extractedStudentId;
+            } else {
+                // 如果标准提取失败，尝试更宽松的匹配
+                const studentIdMatch = line.match(/学号[^\d]*(\d{6,20})/);
+                if (studentIdMatch && studentIdMatch[1]) {
+                    currentPerson['学号'] = studentIdMatch[1];
+                }
+            }
+        }
         if ((line.includes('部门') || line.includes('学院') || line.includes('系别') || line.includes('单位') || line.includes('组织') || line.includes('所属学院') || line.includes('所在学院')) && !currentPerson['所在部门']) currentPerson['所在部门'] = normalizeDepartment(extractField(line, ['部门', '学院', '系别', '单位', '组织', '所属学院', '所在学院']));
         // 跳过包含字段标签的行
         if (line.includes('加分') || line.includes('活动名称') || line.includes('序号') || line.includes('姓名') || line.includes('学号') || line.includes('部门')) {
+            return;
+        }
+        
+        // 跳过合计行，因为合计只是总分的计算，不需要提取
+        if (line.includes('合计') || line.includes('总计') || line.includes('总分')) {
             return;
         }
         
@@ -323,8 +390,9 @@ function extractAllPossibleRecords(lines) {
             const isTooShort = activityName.length < 2;
             const isOnlyNumbers = /^\d+$/.test(activityName);
             const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+            const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
             
-            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isTotalRow) {
                 currentActivities.push({ name: activityName, score: score }); 
             }
         }
@@ -361,13 +429,28 @@ function extractParagraphRecords(paragraphs) {
             
             if (((/姓\s*名/.test(line)) || line.includes('姓名') || line.includes('学生姓名')) && !person['姓名']) 
                 person['姓名'] = extractField(line, ['姓名', '学生姓名', '姓\\s*名']); 
-            if (line.includes('学号') && !person['学号']) 
-                person['学号'] = extractField(line, ['学号'], /\d+/); 
+            if (line.includes('学号') && !person['学号']) {
+                const extractedStudentId = extractField(line, ['学号'], /\d+/);
+                if (extractedStudentId) {
+                    person['学号'] = extractedStudentId;
+                } else {
+                    // 如果标准提取失败，尝试更宽松的匹配
+                    const studentIdMatch = line.match(/学号[^\d]*(\d{6,20})/);
+                    if (studentIdMatch && studentIdMatch[1]) {
+                        person['学号'] = studentIdMatch[1];
+                    }
+                }
+            } 
             if ((line.includes('部门') || line.includes('学院') || line.includes('系别') || line.includes('单位') || line.includes('组织') || line.includes('所属学院') || line.includes('所在学院')) && !person['所在部门']) 
                 person['所在部门'] = normalizeDepartment(extractField(line, ['部门', '学院', '系别', '单位', '组织', '所属学院', '所在学院'])); 
             
             // 跳过包含字段标签的行
             if (line.includes('加分') || line.includes('活动名称') || line.includes('序号') || line.includes('姓名') || line.includes('学号') || line.includes('部门')) {
+                return;
+            }
+            
+            // 跳过合计行，因为合计只是总分的计算，不需要提取
+            if (line.includes('合计') || line.includes('总计') || line.includes('总分')) {
                 return;
             }
             
@@ -426,8 +509,9 @@ function extractParagraphRecords(paragraphs) {
                 const isTooShort = activityName.length < 2;
                 const isOnlyNumbers = /^\d+$/.test(activityName);
                 const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+                const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
                 
-                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isTotalRow) {
                     activities.push({ name: activityName, score: score }); 
                 }
             } 
@@ -486,9 +570,17 @@ function parseAlternativeFormat(text) {
                         }
                     });
                     if (record['姓名'] && record['所参加的活动及担任角色'] && record['加分']) {
-                        record['学号'] = record['学号'] || '未知';
-                        record['所在部门'] = record['所在部门'] || '未知';
-                        records.push(record);
+                        // 检查活动名称是否为合计行
+                        const activityName = record['所参加的活动及担任角色'];
+                        const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
+                        
+                        if (!isTotalRow) {
+                            record['学号'] = record['学号'] || '未知';
+                            record['所在部门'] = record['所在部门'] || '未知';
+                            records.push(record);
+                        } else {
+                            console.log('跳过合计行:', activityName);
+                        }
                     }
                 }
             }
@@ -514,8 +606,15 @@ function parseActivityLines(lines, currentRecord, records) {
         }
         
         // 跳过明显的结束标记
-        if (line.includes('合计') || line.includes('序号') || line.includes('总分') || line.includes('总计')) {
+        if (line.includes('序号') || line.includes('总分') || line.includes('总计')) {
             console.log(`行 ${index + 1}: 结束标记 "${line}"，跳过`);
+            return;
+        }
+        
+        // 跳过合计行，因为合计只是总分的计算，不需要提取
+        if (line.includes('合计')) {
+            console.log(`行 ${index + 1}: 合计行 "${line}"，跳过（不需要提取）`);
+            skippedCount++;
             return;
         }
         
@@ -635,8 +734,9 @@ function parseActivityLines(lines, currentRecord, records) {
             const isTooShort = activityName.length < 2;
             const isOnlyNumbers = /^\d+$/.test(activityName);
             const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+            const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
             
-            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation) {
+            if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isTotalRow) {
                 const activityRecord = Object.assign({}, currentRecord); 
                 activityRecord['加分'] = score; 
                 activityRecord['所参加的活动及担任角色'] = activityName; 
@@ -673,8 +773,9 @@ function parseActivityLines(lines, currentRecord, records) {
                 const isTooShort = activityName.length < 2;
                 const isOnlyNumbers = /^\d+$/.test(activityName);
                 const isOnlyPunctuation = /^[^\u4e00-\u9fa5a-zA-Z0-9]+$/.test(activityName);
+                const isTotalRow = /^(合计|总计|总分|小计|总计得分|同意加分)/.test(activityName);
                 
-                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isNaN(score) && score > 0) {
+                if (!isHeaderRow.test(activityName) && !isTooShort && !isOnlyNumbers && !isOnlyPunctuation && !isTotalRow && !isNaN(score) && score > 0) {
                     const activityRecord = Object.assign({}, currentRecord); 
                     activityRecord['所参加的活动及担任角色'] = activityName; 
                     activityRecord['加分'] = score; 
@@ -716,15 +817,65 @@ function parseSpecialTableFormat(text) {
         }
         if (!name) { name = extractGlobalName(text); }
         let studentId = '未知';
+        // 改进学号提取逻辑，支持更多格式
         const sidIndex = text.search(/学号/);
         if (sidIndex !== -1) {
-            const ctx = text.slice(Math.max(0, sidIndex), sidIndex + 120);
-            const fieldMatch = ctx.match(/学号[^\d\n\r]*([0-9]{6,20})/);
-            if (fieldMatch && fieldMatch[1]) studentId = fieldMatch[1];
+            const ctx = text.slice(Math.max(0, sidIndex), sidIndex + 150);
+            // 支持更多学号格式
+            const fieldMatches = [
+                /学号[^\d\n\r]*([0-9]{6,20})/,
+                /学号[：:]\s*([0-9]{6,20})/,
+                /学号\s+([0-9]{6,20})/,
+                /学号[^\d\n\r]*([0-9]{8,12})/,
+                /学号[：:]\s*([0-9]{8,12})/,
+                /学号\s+([0-9]{8,12})/
+            ];
+            
+            for (const pattern of fieldMatches) {
+                const fieldMatch = ctx.match(pattern);
+                if (fieldMatch && fieldMatch[1]) {
+                    studentId = fieldMatch[1];
+                    console.log('parseSpecialTableFormat - 学号提取成功:', studentId, '模式:', pattern);
+                    break;
+                }
+            }
         }
+        
+        // 如果还是未知，尝试全局搜索学号
         if (studentId === '未知') {
-            const candidates = text.match(/\b\d{8,12}\b/g) || [];
-            if (candidates.length === 1) studentId = candidates[0];
+            // 搜索所有可能的学号格式
+            const allStudentIdPatterns = [
+                /\b([0-9]{8,12})\b/g,  // 8-12位数字
+                /\b([0-9]{6,20})\b/g   // 6-20位数字
+            ];
+            
+            for (const pattern of allStudentIdPatterns) {
+                const matches = text.match(pattern);
+                if (matches && matches.length > 0) {
+                    // 过滤掉明显不是学号的数字（如年份、分数等）
+                    const validStudentIds = matches.filter(id => {
+                        const num = parseInt(id);
+                        // 排除年份（1900-2030）
+                        if (num >= 1900 && num <= 2030) return false;
+                        // 排除分数（0-10）
+                        if (num >= 0 && num <= 10) return false;
+                        // 排除太短的学号
+                        if (id.length < 6) return false;
+                        return true;
+                    });
+                    
+                    if (validStudentIds.length === 1) {
+                        studentId = validStudentIds[0];
+                        console.log('parseSpecialTableFormat - 全局学号提取成功:', studentId);
+                        break;
+                    } else if (validStudentIds.length > 1) {
+                        // 如果有多个候选，选择最长的
+                        studentId = validStudentIds.reduce((a, b) => a.length > b.length ? a : b);
+                        console.log('parseSpecialTableFormat - 多个学号候选，选择最长的:', studentId);
+                        break;
+                    }
+                }
+            }
         }
         let department = '未知';
         const deptFieldIdx = text.search(/所在部门|部门\s*[：:]/);
@@ -765,7 +916,7 @@ function parseSpecialTableFormat(text) {
             console.log('parseSpecialTableFormat - 序号格式匹配:', activityName, score, '位置:', matchStart, '-', matchEnd);
             
             if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
-                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|合计|总计|总分/.test(activityName)) {
                 console.log('parseSpecialTableFormat - 添加序号格式活动:', activityName);
                 activities.push({ name: activityName, score, priority: 1 }); 
                 
@@ -801,7 +952,7 @@ function parseSpecialTableFormat(text) {
             console.log('parseSpecialTableFormat - 冒号格式匹配:', activityName, score);
             
             if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
-                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|合计|总计|总分/.test(activityName)) {
                 console.log('parseSpecialTableFormat - 添加冒号格式活动:', activityName);
                 activities.push({ name: activityName, score, priority: 2 }); 
                 
@@ -837,7 +988,7 @@ function parseSpecialTableFormat(text) {
             console.log('parseSpecialTableFormat - 括号格式匹配:', activityName, score);
             
             if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
-                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织/.test(activityName)) {
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|合计|总计|总分/.test(activityName)) {
                 console.log('parseSpecialTableFormat - 添加括号格式活动:', activityName);
                 activities.push({ name: activityName, score, priority: 3 }); 
                 
@@ -874,7 +1025,7 @@ function parseSpecialTableFormat(text) {
             
             // 过滤掉明显的非活动内容
             if (activityName.length > 1 && !isNaN(score) && score > 0 && score <= 10 && 
-                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|合计|总计|总分/.test(activityName) &&
+                !/加分|活动名称|序号|姓名|学号|部门|学院|系别|单位|组织|总计|总分|合计|小计|总计得分|同意加分/.test(activityName) &&
                 !/^\d+$/.test(activityName) && // 不是纯数字
                 !/^[^\u4e00-\u9fa5]+$/.test(activityName)) { // 包含中文
                 console.log('parseSpecialTableFormat - 添加空格格式活动:', activityName);
@@ -973,7 +1124,7 @@ function extractGlobalName(text) {
     const spaced = text.match(/姓\s*名\s*[：: ]\s*([\u4e00-\u9fa5·]\s*[\u4e00-\u9fa5·]{1,3})/);
     if (spaced && spaced[1]) return spaced[1].replace(/\s+/g, '').trim();
     // 退化：挑选最可能的人名（过滤常见词）
-    const candidates = (text.match(/[\u4e00-\u9fa5·]{2,4}/g) || []).filter(t => !/姓名|学号|部门|学院|性别|民族|政治|出生|班级|专业|活动|角色|分|合计|总分|总计/.test(t));
+            const candidates = (text.match(/[\u4e00-\u9fa5·]{2,4}/g) || []).filter(t => !/姓名|学号|部门|学院|性别|民族|政治|出生|班级|专业|活动|角色|分|总分|总计/.test(t));
     return candidates.length ? candidates[0].replace(/\s+/g, '') : '';
 }
 

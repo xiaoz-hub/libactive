@@ -1,3 +1,6 @@
+// 审查结果相关功能
+
+// 审查单条记录的核心函数
 window.reviewRecord = function(record) {
     const rawScore = record['加分'];
     const isScoreMissing = rawScore === undefined || rawScore === null || String(rawScore).trim() === '';
@@ -21,9 +24,11 @@ window.reviewRecord = function(record) {
         issues: ''
     };
     result._scoreMissing = isScoreMissing;
+    
     // 部门统一规范化
     const normalizedDept = normalizeDepartment(result.department);
     result.department = normalizedDept && normalizedDept.length > 0 ? normalizedDept : '未知';
+    
     const issues = [];
     
     // 首先检查是否添加了必要的规则
@@ -45,89 +50,282 @@ window.reviewRecord = function(record) {
         result.issues = issues.join('; ');
         return result;
     }
-    if (result.studentId === '未知') { issues.push('缺少学号信息'); result.passed = false; }
-    else if (studentIdRules.length > 0) {
+    
+    if (result.studentId === '未知') { 
+        issues.push('缺少学号信息'); 
+        result.passed = false; 
+    } else if (studentIdRules.length > 0) {
         const prefixRules = studentIdRules.filter(r => r.type === 'prefix');
         const lengthRules = studentIdRules.filter(r => r.type === 'length');
         let prefixValid = prefixRules.length === 0;
         if (prefixRules.length > 0) {
             prefixValid = prefixRules.some(rule => result.studentId.startsWith(rule.value));
-            if (!prefixValid) { issues.push(`学号格式不符合规则: ${result.studentId}`); result.passed = false; }
+            if (!prefixValid) { 
+                issues.push(`学号格式不符合规则: ${result.studentId}`); 
+                result.passed = false; 
+            }
         }
         let lengthValid = lengthRules.length === 0;
         if (lengthRules.length > 0) {
             lengthValid = lengthRules.some(rule => result.studentId.length === parseInt(rule.value));
-            if (!lengthValid) { issues.push('学号位数不符合'); result.passed = false; }
+            if (!lengthValid) { 
+                issues.push('学号位数不符合'); 
+                result.passed = false; 
+            }
         }
     }
-    if (!result.department || result.department === '未知') { issues.push('未填写部门'); result.passed = false; }
-    else if (departmentRules.length > 0) {
+    
+    if (!result.department || result.department === '未知') { 
+        issues.push('未填写部门'); 
+        result.passed = false; 
+    } else if (departmentRules.length > 0) {
         let departmentMatched = false;
         for (const dept of departmentRules) {
             const nd = normalizeDepartment(dept);
             if (!nd) continue;
-            if (result.department.includes(nd) || nd.includes(result.department)) { departmentMatched = true; break; }
+            if (result.department.includes(nd) || nd.includes(result.department)) { 
+                departmentMatched = true; 
+                break; 
+            }
         }
-        if (!departmentMatched) { issues.push(`部门名称未在规则列表中: ${result.department}`); result.passed = false; }
+        if (!departmentMatched) { 
+            issues.push(`部门名称未在规则列表中: ${result.department}`); 
+            result.passed = false; 
+        }
     }
+    
     let matchedRuleRef = null;
+    let cadreMatched = false;
+    
     if (result.activityName !== '未知') {
         const normalizedActivity = normalizeActivityName(result.activityName);
+        
+        // 检查是否匹配活动规则
         matchedRuleRef = activityRules.find(rule => {
             const rn = normalizeActivityName(rule.name);
             return normalizedActivity.includes(rn) || rn.includes(normalizedActivity);
         });
+        
+        // 如果没有精确匹配，尝试相似度匹配
+        if (!matchedRuleRef && activityRules.length > 0) {
+            let bestSimilarity = null;
+            let bestRule = null;
+            
+            console.log('开始相似度匹配，活动名称:', result.activityName);
+            console.log('当前相似度设置:', similaritySettings);
+            
+            for (const rule of activityRules) {
+                const similarity = calculateActivitySimilarity(result.activityName, rule.name);
+                console.log(`比较 "${result.activityName}" 与 "${rule.name}":`, similarity);
+                
+                if (similarity.passed && (!bestSimilarity || similarity.fieldMatchCount > bestSimilarity.fieldMatchCount)) {
+                    bestSimilarity = similarity;
+                    bestRule = rule;
+                    console.log('找到更好的匹配:', rule.name, similarity);
+                }
+            }
+            
+            if (bestSimilarity && bestRule) {
+                matchedRuleRef = bestRule;
+                console.log('相似度匹配成功:', bestRule.name, bestSimilarity);
+                // 相似度匹配成功，不显示详细信息
+            } else {
+                console.log('相似度匹配失败，未找到符合条件的规则');
+            }
+        }
+        
+        // 检查是否匹配干部职位规则
+        if (cadreRules.length > 0) {
+            cadreMatched = cadreRules.some(cadre => 
+                result.activityName.includes(cadre)
+            );
+        }
+        
         if (matchedRuleRef) {
-            if (result._scoreMissing) { issues.push('<span class="text-red-600">未填写活动分数</span>'); result.passed = false; }
-            else if (Math.abs(result.score - matchedRuleRef.score) > 0.01) { issues.push(`活动分数不匹配，应为 ${matchedRuleRef.score}，实际为 ${result.score}`); result.passed = false; }
-        } else { issues.push(`活动名称未在规则列表中: ${result.activityName}`); result.passed = false; }
+            if (result._scoreMissing) { 
+                issues.push('<span class="text-red-600">未填写活动分数</span>'); 
+                result.passed = false; 
+            } else if (Math.abs(result.score - matchedRuleRef.score) > 0.01) { 
+                issues.push(`活动分数不匹配，应为 ${matchedRuleRef.score}，实际为 ${result.score}`); 
+                result.passed = false; 
+            }
+        } else if (cadreMatched) {
+            // 如果匹配干部职位规则，则通过
+            result.passed = true;
+            // 找到匹配的干部职位
+            const matchedCadre = cadreRules.find(cadre => 
+                result.activityName.includes(cadre)
+            );
+            if (matchedCadre) {
+                issues.push(`匹配干部职位规则: ${matchedCadre}`);
+            }
+        } else { 
+            issues.push(`活动名称未在规则列表中: ${result.activityName}`); 
+            result.passed = false; 
+        }
     }
-    if (result.name === '未知') { issues.push('缺少姓名信息'); result.passed = false; }
-    if (result.activityName === '未知') { issues.push('缺少活动名称信息'); result.passed = false; }
+    
+    if (result.name === '未知') { 
+        issues.push('缺少姓名信息'); 
+        result.passed = false; 
+    }
+    if (result.activityName === '未知') { 
+        issues.push('缺少活动名称信息'); 
+        result.passed = false; 
+    }
+    
     // 只有在有活动规则的情况下才检查分数相关问题
     if (activityRules.length > 0) {
         // 文档未填写分数：直接提示红色文案
-        if (result._scoreMissing && !matchedRuleRef) { issues.push('<span class="text-red-600">未填写活动分数</span>'); result.passed = false; }
+        if (result._scoreMissing && !matchedRuleRef) { 
+            issues.push('<span class="text-red-600">未填写活动分数</span>'); 
+            result.passed = false; 
+        }
         // 未匹配任何活动规则且分数无效（0或非数）
-        if (!matchedRuleRef && !result._scoreMissing && (result.score === 0 || isNaN(result.score))) { issues.push('活动分数无效或未设置'); result.passed = false; }
+        if (!matchedRuleRef && !result._scoreMissing && (result.score === 0 || isNaN(result.score))) { 
+            issues.push('活动分数无效或未设置'); 
+            result.passed = false; 
+        }
     }
+    
     result.issues = issues.join('; ');
-    if (issues.length === 0) { result.passed = true; result.issues = '通过'; }
+    if (issues.length === 0) { 
+        result.passed = true; 
+        result.issues = '通过'; 
+    }
+    
     return result;
+};
+
+// 显示审查结果
+function displayReviewResults(results) {
+    const resultsTable = document.getElementById('resultsTable');
+    const resultStats = document.getElementById('resultStats');
+    const resultFilter = document.getElementById('resultFilter');
+    const clearResultsBtn = document.getElementById('clearResultsBtn');
+    
+    if (!resultsTable || !resultStats || !resultFilter) {
+        console.error('必要的DOM元素未找到');
+        return;
+    }
+    
+    // 清空表格
+    resultsTable.innerHTML = '';
+    
+    // 统计结果
+    const totalRecords = results.length;
+    const passedRecords = results.filter(r => r.passed).length;
+    const failedRecords = results.filter(r => !r.passed).length;
+    
+    // 更新统计信息
+    document.getElementById('totalRecords').textContent = totalRecords;
+    document.getElementById('passedRecords').textContent = passedRecords;
+    document.getElementById('failedRecords').textContent = failedRecords;
+    
+    // 显示结果
+    results.forEach((result, index) => {
+        const row = document.createElement('tr');
+        row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        
+        // 部门显示逻辑
+        let deptDisplay = result.department;
+        if (result.deptStatus === 'failed') {
+            deptDisplay = `<span class="dept-failed">${result.department}</span>`;
+        } else if (result.deptStatus === 'passed') {
+            deptDisplay = `<span class="dept-passed">${result.department}</span>`;
+        } else if (result.deptStatus === 'warning') {
+            deptDisplay = `<span class="dept-warning">${result.department}</span>`;
+        } else if (result.deptStatus === 'info') {
+            deptDisplay = `<span class="dept-info">${result.department}</span>`;
+        }
+        
+        row.innerHTML = `
+            <td class="px-4 py-2 text-sm text-gray-700">${index + 1}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">${result.name || '未知'}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">${result.studentId || '未知'}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">${deptDisplay}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">${result.activityName || '未知'}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">${result.score || '未知'}</td>
+            <td class="px-4 py-2 text-sm text-gray-700">
+                <span class="${result.passed ? 'text-green-600' : 'text-red-600'} font-medium">
+                    ${result.passed ? '通过' : '未通过'}
+                </span>
+            </td>
+            <td class="px-4 py-2 text-sm text-gray-700 max-w-xs">
+                <div class="whitespace-pre-wrap">${result.issues || '无'}</div>
+            </td>
+        `;
+        resultsTable.appendChild(row);
+    });
+    
+    // 显示相关界面元素
+    resultStats.classList.remove('hidden');
+    resultFilter.classList.remove('hidden');
+    clearResultsBtn.classList.remove('hidden');
+    
+    // 更新分页
+    updatePagination(totalRecords);
+    
+    // 隐藏审查状态
+    document.getElementById('reviewStatus').classList.add('hidden');
+    
+    // 导出按钮样式更新
+    if (exportDropdownBtn) {
+        exportDropdownBtn.classList.remove('no-data');
+    }
+    
+    console.log('审查结果已显示，共', totalRecords, '条记录');
 }
 
+// 清空审查结果
 function clearReviewResults() {
-    if (reviewResults.length === 0) { showNotification('当前没有可清空的审查结果', 'info'); return; }
-    const confirmed = confirm('确定要清空所有审查结果吗？此操作不可撤销。');
-    if (!confirmed) return;
+    if (reviewResults.length === 0) {
+        showNotification('当前没有可清空的审查结果', 'info');
+        return;
+    }
+    
     reviewResults = [];
-    resultsTable.innerHTML = '';
-    totalRecords.textContent = '0';
-    passedRecords.textContent = '0';
-    failedRecords.textContent = '0';
-    exportResultsBtn.disabled = true;
-    document.getElementById('exportOptions').classList.add('hidden');
-    resultFilter.classList.add('hidden');
-    resultStats.classList.add('hidden');
-    clearResultsBtn.classList.add('hidden');
-    const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `
-        <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-            <i class="fa fa-info-circle text-2xl mb-2 block opacity-50"></i>
-            没有记录
-        </td>
-    `;
-    resultsTable.appendChild(emptyRow);
+    document.getElementById('resultsTable').innerHTML = '';
+    document.getElementById('resultStats').classList.add('hidden');
+    document.getElementById('resultFilter').classList.add('hidden');
+    if (exportDropdown) exportDropdown.classList.add('hidden');
+    document.getElementById('clearResultsBtn').classList.add('hidden');
+    document.getElementById('paginationContainer').classList.add('hidden');
+    
+    // 导出按钮样式更新
+    if (exportDropdownBtn) {
+        exportDropdownBtn.classList.add('no-data');
+    }
+    
     showNotification('已清空所有审查结果', 'success');
 }
 
-function exportResults() {
-    if (reviewResults.length === 0) { showNotification('没有可导出的结果', 'error'); return; }
-    let filteredData = reviewResults; let exportType = '全部';
-    if (currentExportFilter === 'passed') { filteredData = reviewResults.filter(r => r.passed); exportType = '通过'; }
-    else if (currentExportFilter === 'failed') { filteredData = reviewResults.filter(r => !r.passed); exportType = '不通过'; }
+// 导出审查结果
+function exportReviewResults(exportFilter = 'all') {
+    if (reviewResults.length === 0) {
+        showNotification('当前没有审查结果可导出，请先上传文件并开始审查', 'info');
+        return;
+    }
+    
+    let filteredData = [];
+    let exportType = '';
+    
+    if (exportFilter === 'all') { filteredData = reviewResults; exportType = '全部'; }
+    else if (exportFilter === 'passed') { filteredData = reviewResults.filter(r => r.passed); exportType = '通过'; }
+    else if (exportFilter === 'failed') { filteredData = reviewResults.filter(r => !r.passed); exportType = '不通过'; }
+    
     if (filteredData.length === 0) { showNotification(`没有${exportType}的记录可导出`, 'error'); return; }
-    const exportData = filteredData.map(result => ({ '姓名': result.name, '学号': result.studentId, '部门': result.department, '活动名称': result.activityName, '分数': result.score, '审查结果': result.passed ? '通过' : '未通过', '问题描述': result.issues }));
+    
+    const exportData = filteredData.map(result => ({
+        '姓名': result.name,
+        '学号': result.studentId,
+        '部门': result.department,
+        '活动名称': result.activityName,
+        '分数': result.score,
+        '审查结果': result.passed ? '通过' : '未通过',
+        '问题描述': result.issues
+    }));
+    
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '审查结果');
@@ -139,17 +337,26 @@ function exportResults() {
 // 合计计算和比对功能
 window.calculateAndCompareTotal = function(records, originalText) {
     console.log('开始计算合计和比对...');
+    console.log('输入记录数量:', records.length);
+    console.log('所有记录:', records);
     
-    // 1. 计算提取的活动分数总和
-    const extractedScores = records.map(record => {
-        const score = parseFloat(record['加分']) || 0;
-        return {
-            activity: record['所参加的活动及担任角色'],
-            score: score,
-            name: record['姓名']
-        };
+    // 1. 计算提取的活动分数总和（去重处理）
+    const uniqueActivities = new Map();
+    
+    records.forEach(record => {
+        const key = `${record['姓名']}-${record['所参加的活动及担任角色']}-${record['加分']}`;
+        if (!uniqueActivities.has(key)) {
+            uniqueActivities.set(key, {
+                activity: record['所参加的活动及担任角色'],
+                score: parseFloat(record['加分']) || 0,
+                name: record['姓名']
+            });
+        } else {
+            console.log('跳过重复活动:', record['所参加的活动及担任角色']);
+        }
     });
     
+    const extractedScores = Array.from(uniqueActivities.values());
     const calculatedTotal = extractedScores.reduce((sum, item) => sum + item.score, 0);
     console.log('计算得出的总分:', calculatedTotal);
     console.log('各活动分数:', extractedScores);
@@ -177,7 +384,7 @@ window.calculateAndCompareTotal = function(records, originalText) {
     } else {
         comparisonResult.isMatch = false;
         comparisonResult.difference = calculatedTotal - documentTotal;
-        comparisonResult.issues.push(`合计分数不匹配：计算得出 ${calculatedTotal}，文档填写 ${documentTotal}，差异 ${comparisonResult.difference > 0 ? '+' : ''}${comparisonResult.difference.toFixed(1)}`);
+        comparisonResult.issues.push(`合计分数有误：应为 ${calculatedTotal}，实际为 ${documentTotal}，差异 ${comparisonResult.difference > 0 ? '+' : ''}${comparisonResult.difference.toFixed(1)}`);
     }
     
     return comparisonResult;
@@ -226,98 +433,41 @@ function extractDocumentTotal(text) {
     return foundTotal;
 }
 
-// 在审查面板中显示合计比对结果
-window.displayTotalComparison = function(comparisonResult) {
-    if (!comparisonResult) return;
-    
-    const reviewPanel = document.getElementById('reviewResults');
-    if (!reviewPanel) return;
-    
-    // 创建合计比对结果显示区域
-    let totalComparisonHtml = `
-        <div class="total-comparison-section" style="margin: 20px 0; padding: 15px; border: 2px solid #e9ecef; border-radius: 8px; background-color: #f8f9fa;">
-            <h3 style="margin: 0 0 15px 0; color: #495057; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;">
-                📊 合计分数比对结果
-            </h3>
-    `;
-    
-    if (comparisonResult.isMatch) {
-        totalComparisonHtml += `
-            <div style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                ✅ 合计分数正确：${comparisonResult.calculatedTotal}
-            </div>
-        `;
-    } else if (comparisonResult.documentTotal === null) {
-        // 文档中没有找到合计分数
-        totalComparisonHtml += `
-            <div style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                ⚠️ 文档中未找到合计分数：
-                <br>• 计算得出：<strong>${comparisonResult.calculatedTotal}</strong>
-                <br>• 建议在文档中添加合计分数以便核对
-            </div>
-        `;
-    } else {
-        // 合计分数不匹配
-        totalComparisonHtml += `
-            <div style="color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-                ❌ 合计分数不匹配：
-                <br>• 计算得出：<strong>${comparisonResult.calculatedTotal}</strong>
-                <br>• 文档填写：<strong>${comparisonResult.documentTotal}</strong>
-                <br>• 差异：<strong style="color: ${comparisonResult.difference > 0 ? '#dc3545' : '#28a745'}">${comparisonResult.difference > 0 ? '+' : ''}${comparisonResult.difference.toFixed(1)}</strong>
-            </div>
-        `;
-    }
-    
-    // 显示各活动分数明细
-    totalComparisonHtml += `
-        <div style="margin-top: 15px;">
-            <h4 style="margin: 0 0 10px 0; color: #495057;">活动分数明细：</h4>
-            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; background-color: white;">
-    `;
-    
-    comparisonResult.extractedScores.forEach((item, index) => {
-        totalComparisonHtml += `
-            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f8f9fa;">
-                <span style="flex: 1; font-size: 14px;">${index + 1}. ${item.activity}</span>
-                <span style="font-weight: bold; color: #28a745; margin-left: 10px;">${item.score}</span>
-            </div>
-        `;
-    });
-    
-    totalComparisonHtml += `
-            </div>
-            <div style="margin-top: 10px; padding: 10px; background-color: #e9ecef; border-radius: 4px; text-align: right;">
-                <strong>总计：${comparisonResult.calculatedTotal}</strong>
-            </div>
-        </div>
-    </div>
-    `;
-    
-    // 将合计比对结果插入到审查面板的顶部
-    reviewPanel.insertAdjacentHTML('afterbegin', totalComparisonHtml);
-};
-
 // 修改现有的审查函数，集成合计比对功能
 window.reviewRecordsWithTotal = function(records, originalText) {
     // 先进行常规审查
     const reviewResults = records.map(record => reviewRecord(record));
     
-    // 进行合计比对
-    const totalComparison = calculateAndCompareTotal(records, originalText);
+    // 检查是否所有活动都通过审查
+    const allActivitiesPassed = reviewResults.every(result => result.passed);
     
-    // 如果合计分数不匹配，将问题添加到所有审查记录的问题描述中
-    if (!totalComparison.isMatch && totalComparison.documentTotal !== null) {
-        reviewResults.forEach(result => {
-            if (result.issues && result.issues !== '通过') {
-                result.issues += '; 合计分数有误';
-            } else if (result.issues === '通过') {
-                result.issues = '合计分数有误';
-                result.passed = false;
-            } else {
-                result.issues = '合计分数有误';
-                result.passed = false;
-            }
-        });
+    console.log('所有活动是否都通过:', allActivitiesPassed);
+    console.log('审查结果详情:', reviewResults.map(r => ({ activity: r.activityName, passed: r.passed, issues: r.issues })));
+    
+    let totalComparison = null;
+    
+    // 只有当所有活动都通过时，才进行合计分数比对
+    if (allActivitiesPassed) {
+        // 进行合计比对
+        totalComparison = calculateAndCompareTotal(records, originalText);
+        
+        // 如果合计分数不匹配，将问题添加到所有审查记录的问题描述中
+        if (!totalComparison.isMatch && totalComparison.documentTotal !== null) {
+            const totalErrorMsg = `合计分数有误：应为 ${totalComparison.calculatedTotal}，实际为 ${totalComparison.documentTotal}，差异 ${totalComparison.difference > 0 ? '+' : ''}${totalComparison.difference.toFixed(1)}`;
+            reviewResults.forEach(result => {
+                if (result.issues && result.issues !== '通过') {
+                    result.issues += '; ' + totalErrorMsg;
+                } else if (result.issues === '通过') {
+                    result.issues = totalErrorMsg;
+                    result.passed = false;
+                } else {
+                    result.issues = totalErrorMsg;
+                    result.passed = false;
+                }
+            });
+        }
+    } else {
+        console.log('存在未通过的活动，跳过合计分数比对');
     }
     
     // 显示审查结果
@@ -328,4 +478,17 @@ window.reviewRecordsWithTotal = function(records, originalText) {
         totalComparison: totalComparison
     };
 };
+
+// 绑定事件
+document.addEventListener('DOMContentLoaded', function() {
+    // 清空结果按钮
+    const clearResultsBtn = document.getElementById('clearResultsBtn');
+    if (clearResultsBtn) {
+        clearResultsBtn.addEventListener('click', clearReviewResults);
+    }
+    
+    // 导出下拉菜单事件已在init.js中处理
+    
+    console.log('review.js 事件监听器已绑定');
+});
 
